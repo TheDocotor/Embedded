@@ -1,0 +1,14 @@
+
+BL51 BANKED LINKER/LOCATER V6.22.2.0 - SN: Eval Version
+COPYRIGHT ARM Germany GmbH 1987 - 2017
+"C:\Users\enslo_l5het9y\Documents\Embedded\Project 1\pingpong.obj"  TO "C:\Users\enslo_l5het9y\Documents\Embedded\Project 1\PingPong" RS(256) PL(68) PW(78) 
+
+******************************************************************************
+* RESTRICTED VERSION WITH 0800H BYTE CODE SIZE LIMIT; USED: 0105H BYTE (12%) *
+******************************************************************************
+
+>> 
+>> 
+>> 
+Program Size: data=13.2 xdata=0 code=261
+LINK/LOCATE RUN COMPLETE.  0 WARNING(S),  0 ERROR(S)
