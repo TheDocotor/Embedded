@@ -1,0 +1,1 @@
+"C:\Users\enslo_l5het9y\Documents\Embedded\Lab 2\Lab 2.obj"  TO "C:\Users\enslo_l5het9y\Documents\Embedded\Lab 2\Lab 2" RS(256) PL(68) PW(78) 

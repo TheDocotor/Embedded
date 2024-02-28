@@ -1,0 +1,175 @@
+$include (c8051f020.inc)
+			DSEG at 20h
+random:	DS 1
+old_button: DS 1
+
+			CSEG
+
+;------------Start time-----------
+			mov wdtcn, #0DEh		;disable watchdog
+			mov wdtcn, #0ADh
+			mov xbr2, #40h			;enable output
+			mov xbr0, #04h			;
+			setb P2.7	
+			setb P2.6					;input button
+			mov 	oscxcn, #67h
+			mov		TMOD, #21h		;Set up timers
+			mov		th1, #256-167	; 2MHz clock, 167 counts = 1ms
+			setb	tr1
+
+wait_0: 	jnb	tf1, wait_0
+			 	CLR TR1						;1ms elapsed, stop timer
+				CLR TF1
+
+wait_1: mov a, oscxcn			;wait for clock to warm up
+				jnb	acc.7, wait_1
+				mov	oscicn, #8		;Now using the 22.1184 MHz
+				mov	scon0, #50h 	;8-bit, 1 stop bit, REN
+				mov th1, #-6			;Loads value for 9600 buad serial com
+				setb	tr1					;Start the serial com timer
+
+send_crlf:
+			mov	dptr, #CRLF			;Find address of CRLF
+			call	send_string		;Carriage return and line feed on the line.
+WTBTNS:	call delay_10ms		; uses timer for delay
+				djnz random, continue ;random number generator
+				mov random, #10		;random in range 1-10, if it hits ten return it.
+
+continue:
+			call 	check_buttons	
+			cjne 	a, #01, next
+
+next: jb		scon0.0, msg_call
+			jc 		WTBTNS
+
+msg_call:
+			CLR		scon0.0
+			call 	message
+			call 	send_string
+			jmp		send_crlf
+
+;-------Send Message-------
+send_string:
+				clr 	A
+				movc	A, @A+DPTR
+				JZ		done
+				call	send_byte
+				inc		dptr
+				jmp		send_string
+
+done: 	ret
+
+;------send byte------------
+send_byte:
+			mov 		sbuf0, A
+			call		delay_5ms	
+			RET
+;--------serial time delay------------
+serial_delay:
+			jnb		tf1, serial_delay
+			clr		tf1
+			ret
+
+;--------10ms delay---------
+delay_10ms:
+			mov 	TL0, #low(-9216)
+			mov 	TH0, #high(-9216)
+			setb 	TR0
+wait: jnb		TF0, wait
+			clr		TF0
+			clr		TR0
+			RET
+
+;------- 5 ms Delay----------
+delay_5ms:
+				mov 		TL0, #low(-4044)
+				mov			TH0, #high(-4044)
+				setb		TR0
+WAIT_5:	jnb 		TF0, WAIT_5
+				clr			TF0
+				clr			TR0
+				ret
+
+; ------ Check_buttons ------
+Check_buttons: 
+        MOV     A, P2						;same check buttons from previous labs tweaked for this one
+        CPL     A               
+        XCH     A, old_button   
+        XRL     A, old_button  
+        ANL     A, old_button   
+        ANL     A, #11000000b  
+        RET
+
+;-----------Messages----------
+Message:
+			mov 	A, random
+			mov		P3, #0FFh
+			orl		P2, #03
+			cjne	A, #01, not_one	;Compares accumulator with 0, if true it turns on led
+			mov 	dptr, #ans_0
+			clr 	P3.0
+			ret
+
+not_one: 
+        CJNE    A, #02, not_two
+        mov     dptr, #ans_1
+        CLR     P3.1
+        RET
+not_two: 
+        CJNE    A, #03, not_three
+        mov     dptr, #ans_2
+        CLR     P3.2
+        RET
+not_three: 
+        CJNE    A, #04, not_four
+        mov     dptr, #ans_3
+        CLR     P3.3
+        RET
+not_four: 
+        CJNE    A, #05, not_five
+        mov     dptr, #ans_4
+        CLR     P3.4
+        RET
+not_five: 
+        CJNE    A, #06, not_six
+        mov     dptr, #ans_5
+        CLR     P3.5
+        RET
+not_six: 
+        CJNE    A, #07, not_seven
+        mov     dptr, #ans_6
+        CLR     P3.6
+        RET
+not_seven: 
+        CJNE    A, #08, not_eight
+        mov     dptr, #ans_7
+        CLR     P3.7
+        RET
+not_eight: 
+        CJNE    A, #09, not_nine
+        mov     dptr, #ans_8 
+        CLR     P2.0
+        RET
+not_nine: 
+        CJNE    A, #10, not_ten
+        mov     dptr, #ans_9
+        CLR     P2.1
+        RET
+not_ten: 
+        MOV     dptr, #CRLF ; This code shouldn't be reached because the accumulator should always be less than 11
+        RET
+
+
+ans_0: db "It is certain", 0
+ans_1: db "You may rely on it", 0
+ans_2: db "Without a doubt", 0
+ans_3: db "Yes", 0
+ans_4: db "Most likely", 0
+ans_5: db "Reply hazy, try again", 0
+ans_6: db "Concentrate and ask again", 0
+ans_7: db "Don't count on it", 0
+ans_8: db "Very doubtful", 0
+ans_9: db "My reply is no", 0
+CRLF:	db	0DH, 0AH, 0
+
+			END

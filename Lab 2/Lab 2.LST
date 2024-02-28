@@ -1,9 +1,9 @@
-A51 MACRO ASSEMBLER  PINGPONG                                                             02/27/2024 16:57:25 PAGE     1
+A51 MACRO ASSEMBLER  LAB_2                                                                01/22/2024 14:47:39 PAGE     1
 
 
 MACRO ASSEMBLER A51 V8.2.7.0
-OBJECT MODULE PLACED IN pingpong.OBJ
-ASSEMBLER INVOKED BY: C:\Keil_v5\C51\BIN\A51.EXE pingpong.asm XR GEN DB EP NOMOD51 INCDIR(C:\SiLabs\MCU\Inc) 
+OBJECT MODULE PLACED IN Lab 2.OBJ
+ASSEMBLER INVOKED BY: C:\Keil_v5\C51\BIN\A51.EXE Lab 2.asm XR GEN DB EP NOMOD51 INCDIR(C:\SiLabs\MCU\Inc) 
 
 LOC  OBJ            LINE     SOURCE
 
@@ -65,7 +65,7 @@ LOC  OBJ            LINE     SOURCE
   00AA          +1    56     ADC1CN  DATA  0AAH   ; ADC 1 CONTROL
   00AB          +1    57     ADC1CF   DATA  0ABH   ; ADC 1 ANALOG MUX CONFIGURATION
   00AC          +1    58     AMX1SL   DATA  0ACH   ; ADC 1 ANALOG MUX CHANNEL SELECT
-A51 MACRO ASSEMBLER  PINGPONG                                                             02/27/2024 16:57:25 PAGE     2
+A51 MACRO ASSEMBLER  LAB_2                                                                01/22/2024 14:47:39 PAGE     2
 
   00AD          +1    59     P3IF     DATA  0ADH   ; PORT 3 EXTERNAL INTERRUPT FLAGS
   00AE          +1    60     SADEN1   DATA  0AEH   ; SERIAL PORT 1 SLAVE ADDRESS MASK
@@ -133,7 +133,7 @@ LOC  OBJ            LINE     SOURCE
   00F0          +1   122     B        DATA  0F0H   ; B REGISTER
   00F1          +1   123     SCON1    DATA  0F1H   ; SERIAL PORT 1 CONTROL
   00F2          +1   124     SBUF1    DATA  0F2H   ; SERAIL PORT 1 DATA
-A51 MACRO ASSEMBLER  PINGPONG                                                             02/27/2024 16:57:25 PAGE     3
+A51 MACRO ASSEMBLER  LAB_2                                                                01/22/2024 14:47:39 PAGE     3
 
   00F3          +1   125     SADDR1   DATA  0F3H   ; SERAIL PORT 1 
   00F4          +1   126     TL4      DATA  0F4H   ; TIMER 4 DATA - LOW BYTE
@@ -201,7 +201,7 @@ LOC  OBJ            LINE     SOURCE
                 +1   188     ; T2CON C8H
   00C8          +1   189     CPRL2    BIT   T2CON.0 ; CAPTURE OR RELOAD SELECT
   00C9          +1   190     CT2      BIT   T2CON.1 ; TIMER OR COUNTER SELECT
-A51 MACRO ASSEMBLER  PINGPONG                                                             02/27/2024 16:57:25 PAGE     4
+A51 MACRO ASSEMBLER  LAB_2                                                                01/22/2024 14:47:39 PAGE     4
 
   00CA          +1   191     TR2      BIT   T2CON.2 ; TIMER 2 ON/OFF CONTROL
   00CB          +1   192     EXEN2    BIT   T2CON.3 ; TIMER 2 EXTERNAL ENABLE FLAG
@@ -249,277 +249,18 @@ LOC  OBJ            LINE     SOURCE
   00FE          +1   234     WCOL     BIT   SPI0CN.6 ; SPI 0 WRITE COLLISION FLAG
   00FF          +1   235     SPIF     BIT   SPI0CN.7 ; SPI 0 INTERRUPT FLAG
                      236     
-                     237     ;PUT IN A COUNT TO UPDATE THE LEDS
-----                 238                                     dseg at 30h
-0030                 239     Position:               ds 1
-0031                 240     old_buttons:    ds 1
-0032                 241     l_config:                       ds 1
-0033                 242     r_config:                       ds 1
-0034                 243     s_config:                       ds 1 
-0035                 244     count:                          ds 1                                                       
-                                                          ;0 is travelling right
-----                 245     bseg
-0000                 246     start_side: dbit 1              ;keeps track of the serve
-0001                 247     direction:      dbit 1
-                     248     
-----                 249                                     cseg
-                     250     
-0000 75FFDE          251             mov wdtcn,#0DEh                 ; disable watchdog
-0003 75FFAD          252             mov wdtcn,#0ADh
-0006 75E340          253             mov xbr2,#40h                   ; enable I/O
-                     254     
-0009 D2A7            255             setb     P2.7                      ;assign buttons
-A51 MACRO ASSEMBLER  PINGPONG                                                             02/27/2024 16:57:25 PAGE     5
-
-000B D2A6            256             setb     P2.6
-                     257                             
-000D B200            258                                     cpl start_side                                             
-                                  ;change serving side
-                     259     
-000F A200            260                                     mov c, start_side
-0011 B3              261                                     cpl c
-0012 9201            262                                     mov direction, c
-                     263     
-0014 300035          264                                     jnb start_side, left_side       ; 1 right side serve
-                     265                                     ;jmp left_side                                             
-                                          ; 0 left side serve
-                     266     
-                     267     
-0017 753000          268     right_side:     mov position, #00h                                      ;sets led to far le
-                             ft
-001A 11FD            269                                                     call display
-                     270                                                     
-001C A990            271                                                     mov R1, P1                                 
-                                                  ;sets config bytes to lsb of each byte
-001E E9              272                                                     mov A, R1
-001F 5403            273                                                     anl A, #00000011b
-0021 F532            274                                                     mov l_config, A
-0023 740A            275                                                     mov A, #10
-0025 9532            276                                                     subb A, l_config
-0027 F532            277                                                     mov l_config, A
-0029 E9              278                                                     mov A, R1
-002A 5418            279                                                     anl A, #00011000b                          
-                                  ;1/2 left window, 4/5 speed, 7/8 right window
-002C 23              280                                                     rl      A
-002D C4              281                                                     swap A
-002E F534            282                                                     mov s_config, A
-0030 E9              283                                                     mov A, R1
-0031 54C0            284                                                     anl A, #11000000b
-0033 C4              285                                                     swap A
-0034 03              286                                                     rr A
-0035 03              287                                                     rr A
-                     288                                                     ;add A, #1
-0036 F533            289                                                     mov r_config, A 
-                     290                                                     
-0038 E534            291                                                     mov A, s_config
-003A 7004            292                                                     jnz speedy
-003C 7819            293                                                     mov R0, #25                                
-                                                                  ;speed is (15 * 10ms = 150ms)
-003E 8002            294                                                     jmp proceed
-                     295     
-0040 7808            296     speedy:         mov R0, #8                                              
-                     297                                                                                             
-0042 8835            298     proceed:        mov count, R0
-0044 1200F3          299                                                     lcall check_buttons                        
-                                                                  ;serve ball?
-0047 20E437          300                                                     jb ACC.4, main
-004A 80CB            301                                                     jmp right_side
-                     302     
-004C 753009          303     left_side:      mov position, #09h                                      ;sets led to far le
-                             ft
-004F 11FD            304                                                     call display
-                     305                                                     
-0051 A990            306                                                     mov R1, P1                                 
-                                                  ;sets config bytes to lsb of each byte
-0053 E9              307                                                     mov A, R1
-0054 5403            308                                                     anl A, #00000011b
-0056 F532            309                                                     mov l_config, A
-0058 740A            310                                                     mov A, #10
-005A 9532            311                                                     subb A, l_config
-005C F532            312                                                     mov l_config, A
-A51 MACRO ASSEMBLER  PINGPONG                                                             02/27/2024 16:57:25 PAGE     6
-
-005E E9              313                                                     mov A, R1
-005F 5418            314                                                     anl A, #00011000b                          
-                                  ;1/2 left window, 4/5 speed, 7/8 right window
-0061 23              315                                                     rl      A
-0062 C4              316                                                     swap A
-0063 F534            317                                                     mov s_config, A
-0065 E9              318                                                     mov A, R1
-0066 54C0            319                                                     anl A, #11000000b
-0068 C4              320                                                     swap A
-0069 03              321                                                     rr A
-006A 03              322                                                     rr A
-                     323                                                     ;add A, #1
-006B F533            324                                                     mov r_config, A 
-                     325                                                     
-006D E534            326                                                     mov A, s_config
-006F 7004            327                                                     jnz speedy_l
-0071 7819            328                                                     mov R0, #25                                
-                                                                  ;speed is (15 * 10ms = 150ms)
-0073 8002            329                                                     jmp proceed_l
-                     330     
-0075 7808            331     speedy_l:               mov R0, #8                                              
-                     332                                                                                             
-0077 8835            333     proceed_l:      mov count, R0
-0079 1200F3          334                                                     lcall check_buttons                        
-                                                                  ;serve ball?
-007C 20E602          335                                                     jb ACC.6, main
-007F 80CB            336                                                     jmp left_side
-                     337     
-0081 11EA            338     main:                           call DELAY                                                 
-                                                                  ;we decided to jump to next sub from current sub not main
-0083 8002            339                                                     jmp check_dir
-                     340                                     
-0085 80FA            341                                                     jmp main
-0087                 342     check_dir:      
-0087 300102          343                                                     jnb direction, check_left_window
-008A 8016            344                                                     jmp check_right_window
-                     345     
-008C E530            346     check_left_window: mov A, position
-008E B53200          347                                                     CJNE A, l_config, NOTEQUAL_L
-0091                 348     NOTEQUAL_L:     
-0091 400A            349                                                     JC GREATER_L
-0093 11F3            350                                                     CALL            check_buttons
-0095 30E620          351                                                     jnb     Acc.6, mov_led
-0098 B201            352                                                     CPL                     direction
-009A 0200B8          353                                                     LJMP            mov_led
-                     354     
-009D 11F3            355     GREATER_L:      CALL check_buttons
-009F 0200B8          356                                                     LJMP mov_led
-                     357     
-                     358     
-00A2 E530            359     check_right_window: mov A, position
-00A4 B53300          360                                                     CJNE A, r_config, NOTEQUAL
-00A7                 361     NOTEQUAL:       
-00A7 500A            362                                                     JNC GREATER
-00A9 11F3            363                                                     CALL            check_buttons
-00AB 30E40A          364                                                     jnb             Acc.4, mov_led
-00AE B201            365                                                     CPL                     direction
-00B0 0200B8          366                                                     LJMP            mov_led
-                     367                                                     ;CJNE    A, #90h, mov_led                  
-                                  ;This is where we left off, check the button since it's less than the window, and change directions and move
-                     368     
-00B3 11F3            369     GREATER:                CALL            check_buttons
-                     370                                                     ;CJNE    A, #90h, mov_led
-                     371                                                     ;CPL                    direction
-00B5 0200B8          372                                                     LJMP            mov_led
-                     373     
-A51 MACRO ASSEMBLER  PINGPONG                                                             02/27/2024 16:57:25 PAGE     7
-
-00B8 30010F          374     mov_led:        jnb direction, l_led
-00BB D53507          375                                             djnz    count, mov_on
-00BE 8835            376                                             mov count, R0
-00C0 1530            377                                             dec position
-00C2 0200D4          378                                             LJMP End_Game
-                     379     
-00C5 11FD            380     mov_on:         call display
-00C7 020081          381                                             LJMP main
-                     382     
-00CA D535F8          383     l_led:          djnz count, mov_on
-00CD 8835            384                                             mov count, R0
-00CF 0530            385                                             inc position
-00D1 0200D4          386                                             LJMP End_Game
-                     387     
-                     388     ; Game over Criteria                                    
-00D4 E530            389     End_Game: mov     A, position
-00D6 B4FF0A          390                     CJNE            A, #0FFh, NINE          ;If position = 0 then the game is o
-                             ver.
-00D9 43B0FF          391                                             ORL    P3, #0FFh
-00DC 43A003          392                     ORL    P2, #03h
-00DF C2B0            393                                             clr P3.0
-00E1 8061            394                     SJMP    OVER
-                     395     
-00E3 E530            396     NINE:   mov     A, position
-00E5 B40ADD          397             CJNE    A, #0Ah, mov_on         ;If position = 10 then the game is over.
-00E8 805A            398             SJMP    OVER    
-                     399     
-                     400     ;CJNE  R0,#00H,NOTEQUAL
-                     401     ; equal code goes here, then branch out
-                     402     ;NOTEQUAL:
-                     403     ;JC GREATER
-                     404     ; less than code goes here, then branch out
-                     405     ;GREATER:
-                     406     ; greater code goes here
-                     407     
-                     408     ;sped:
-                     409     ;                               orl     p2, #0Ch
-                     410     ;                               call delay
-                     411     ;                               call check_buttons
-                     412     ;                       ;       orl     buttons, A
-                     413     ;                               djnz    R0, sped        
-                     414     
-                     415     ; Time delay of 10ms
-00EA 7A43            416     DELAY:                          mov     R2, #67         ; Load R2 with 67
-00EC 7B64            417     outer_loop:   mov     R3, #100  ; Load R3 with 100,             100 * 67 * 1.5 us = 10ish ms
-00EE DBFE            418     nested_loop:  DJNZ    R3, nested_loop   ; Stay here till R3 = 0
-00F0 DAFA            419                                     DJNZ    R2, outer_loop  ; Stay here till R2 = 0
-00F2 22              420                                     RET
-                     421     ;check the buttons
-00F3 E5A0            422     Check_buttons: mov A, P2
-00F5 F4              423             cpl A                           ; CPL inputs since they are active low
-00F6 C531            424             XCH A, old_buttons              ; takes the input of the new buttons and stores it,
-                              passes the old buttons into acc
-00F8 6531            425             XRL A, old_buttons              ; If the buttons are the same change them to 0's
-00FA 5531            426             ANL A, old_buttons              ; If buttons are different and pressed they stay
-00FC 22              427             RET
-                     428     
-00FD 43B0FF          429     Display: ORL    P3, #0FFh
-0100 43A003          430              ORL    P2, #03h
-0103 E530            431              mov    A, position
-0105 310E            432              CALL   not_one
-0107 22              433                                      RET
-                     434              ;mov    A, position                    ; Is this code needed, I dont think A will 
-                             get changed while DISP_LED is ran.XXXXXXXXXX
-                     435              ;inc    A
-                     436              ;CALL          not_one
-A51 MACRO ASSEMBLER  PINGPONG                                                             02/27/2024 16:57:25 PAGE     8
-
-                     437              ;ret
-                     438                                                     
-0108 B40003          439     not_zero: CJNE  A, #00h, not_one
-010B C2B0            440                     CLR     P3.0
-010D 22              441                     RET
-                     442     
-010E B40103          443     not_one: CJNE   A, #01h, not_two
-0111 C2B1            444              CLR     P3.1
-0113 22              445              RET
-                     446     
-0114 B40203          447     not_two: CJNE   A, #02h, not_three;
-0117 C2B2            448              CLR     P3.2
-0119 22              449              RET
-                     450     
-011A B40303          451     not_three: CJNE A, #03h, not_four
-011D C2B3            452                      CLR     P3.3
-011F 22              453                      RET
-                     454     
-0120 B40403          455     not_four: CJNE  A, #04h, not_five
-0123 C2B4            456                     CLR     P3.4
-0125 22              457                     RET
-                     458     
-0126 B40503          459     not_five: CJNE  A, #05h, not_six
-0129 C2B5            460                     CLR     P3.5
-012B 22              461                     RET
-                     462     
-012C B40603          463     not_six: CJNE   A, #06h, not_seven;
-012F C2B6            464              CLR     P3.6
-0131 22              465              RET
-                     466     
-0132 B40703          467     not_seven: CJNE A, #07h, not_eight;
-0135 C2B7            468                      CLR     P3.7
-0137 22              469                      RET
-                     470     
-0138 B40803          471     not_eight: CJNE A, #08h, not_nine; 
-013B C2A0            472                      CLR     P2.0
-013D 22              473                      RET    
-                     474                                             
-013E B409C7          475     not_nine: CJNE A, #09h, not_zero
-0141 C2A1            476                     CLR     P2.1
-0143 22              477                     RET                             
-                     478     
-0144                 479     OVER:                   
-                     480                                             end
-A51 MACRO ASSEMBLER  PINGPONG                                                             02/27/2024 16:57:25 PAGE     9
+----                 237     cseg
+0000 75FFDE          238     mov wdtcn, #0DEh        ;disable watchdog
+0003 75FFAD          239     mov wdtcn, #0ADh 
+0006 75E340          240     mov xbr2, #40h
+0009 8590B0          241     loop: mov p3, p1
+000C A2A6            242                             mov c, p2.6
+000E 92A0            243                             mov p2.0, c
+0010 A2A7            244                             mov c, p2.7
+0012 92A1            245                             mov p2.1, c
+0014 80F3            246                             jmp loop
+                     247                             end
+A51 MACRO ASSEMBLER  LAB_2                                                                01/22/2024 14:47:39 PAGE     5
 
 XREF SYMBOL TABLE LISTING
 ---- ------ ----- -------
@@ -529,7 +270,7 @@ N A M E             T Y P E  V A L U E   ATTRIBUTES / REFERENCES
 
 AA . . . . . . . .  B ADDR   00C0H.2 A      182#
 AC . . . . . . . .  B ADDR   00D0H.6 A      205#
-ACC. . . . . . . .  D ADDR   00E0H   A      106# 300 335 351 364
+ACC. . . . . . . .  D ADDR   00E0H   A      106#
 AD0BUSY. . . . . .  B ADDR   00E8H.4 A      222#
 AD0EN. . . . . . .  B ADDR   00E8H.7 A      225#
 AD0INT . . . . . .  B ADDR   00E8H.5 A      223#
@@ -559,12 +300,7 @@ CCF2 . . . . . . .  B ADDR   00D8H.2 A      211#
 CCF3 . . . . . . .  B ADDR   00D8H.3 A      212#
 CCF4 . . . . . . .  B ADDR   00D8H.4 A      213#
 CF . . . . . . . .  B ADDR   00D8H.7 A      215#
-CHECK_BUTTONS. . .  C ADDR   00F3H   A      299 334 350 355 363 369 422#
-CHECK_DIR. . . . .  C ADDR   0087H   A      339 342#
-CHECK_LEFT_WINDOW.  C ADDR   008CH   A      343 346#
-CHECK_RIGHT_WINDOW  C ADDR   00A2H   A      344 359#
 CKCON. . . . . . .  D ADDR   008EH   A      30#
-COUNT. . . . . . .  D ADDR   0035H   A      244# 298 333 375 376 383 384
 CPRL2. . . . . . .  B ADDR   00C8H.0 A      189#
 CPT0CN . . . . . .  D ADDR   009EH   A      45#
 CPT1CN . . . . . .  D ADDR   009FH   A      46#
@@ -577,9 +313,6 @@ DAC0L. . . . . . .  D ADDR   00D2H   A      93#
 DAC1CN . . . . . .  D ADDR   00D7H   A      98#
 DAC1H. . . . . . .  D ADDR   00D6H   A      97#
 DAC1L. . . . . . .  D ADDR   00D5H   A      96#
-DELAY. . . . . . .  C ADDR   00EAH   A      338 416#
-DIRECTION. . . . .  B ADDR   0020H.1 A      247# 262 343 352 365 374
-DISPLAY. . . . . .  C ADDR   00FDH   A      269 304 380 429#
 DPH. . . . . . . .  D ADDR   0083H   A      19#
 DPL. . . . . . . .  D ADDR   0082H   A      18#
 EA . . . . . . . .  B ADDR   00A8H.7 A      169#
@@ -587,17 +320,16 @@ EIE1 . . . . . . .  D ADDR   00E6H   A      112#
 EIE2 . . . . . . .  D ADDR   00E7H   A      113#
 EIP1 . . . . . . .  D ADDR   00F6H   A      128#
 EIP2 . . . . . . .  D ADDR   00F7H   A      129#
-A51 MACRO ASSEMBLER  PINGPONG                                                             02/27/2024 16:57:25 PAGE    10
-
 EMI0CF . . . . . .  D ADDR   00A3H   A      49#
 EMI0CN . . . . . .  D ADDR   00AFH   A      61#
 EMI0TC . . . . . .  D ADDR   00A1H   A      48#
-END_GAME . . . . .  C ADDR   00D4H   A      378 386 389#
 ENSMB. . . . . . .  B ADDR   00C0H.6 A      186#
 ES . . . . . . . .  B ADDR   00A8H.4 A      167#
 ET0. . . . . . . .  B ADDR   00A8H.1 A      164#
 ET1. . . . . . . .  B ADDR   00A8H.3 A      166#
 ET2. . . . . . . .  B ADDR   00A8H.5 A      168#
+A51 MACRO ASSEMBLER  LAB_2                                                                01/22/2024 14:47:39 PAGE     6
+
 EX0. . . . . . . .  B ADDR   00A8H.0 A      163#
 EX1. . . . . . . .  B ADDR   00A8H.2 A      165#
 EXEN2. . . . . . .  B ADDR   00C8H.3 A      192#
@@ -606,57 +338,31 @@ F0 . . . . . . . .  B ADDR   00D0H.5 A      204#
 F1 . . . . . . . .  B ADDR   00D0H.1 A      200#
 FLACL. . . . . . .  D ADDR   00B7H   A      67#
 FLSCL. . . . . . .  D ADDR   00B6H   A      66#
-GREATER. . . . . .  C ADDR   00B3H   A      362 369#
-GREATER_L. . . . .  C ADDR   009DH   A      349 355#
 IE . . . . . . . .  D ADDR   00A8H   A      54# 163 164 165 166 167 168 169
 IE0. . . . . . . .  B ADDR   0088H.1 A      144#
 IE1. . . . . . . .  B ADDR   0088H.3 A      146#
 IP . . . . . . . .  D ADDR   00B8H   A      68# 172 173 174 175 176 177
 IT0. . . . . . . .  B ADDR   0088H.0 A      143#
 IT1. . . . . . . .  B ADDR   0088H.2 A      145#
-LEFT_SIDE. . . . .  C ADDR   004CH   A      264 303# 336
-L_CONFIG . . . . .  D ADDR   0032H   A      241# 274 276 277 309 311 312 347
-L_LED. . . . . . .  C ADDR   00CAH   A      374 383#
-MAIN . . . . . . .  C ADDR   0081H   A      300 335 338# 341 381
+LOOP . . . . . . .  C ADDR   0009H   A      241# 246
 MODF . . . . . . .  B ADDR   00F8H.5 A      233#
-MOV_LED. . . . . .  C ADDR   00B8H   A      351 353 356 364 366 372 374#
-MOV_ON . . . . . .  C ADDR   00C5H   A      375 380# 383 397
 MSTEN. . . . . . .  B ADDR   00F8H.1 A      229#
-NESTED_LOOP. . . .  C ADDR   00EEH   A      418# 418
-NINE . . . . . . .  C ADDR   00E3H   A      390 396#
-NOTEQUAL . . . . .  C ADDR   00A7H   A      360 361#
-NOTEQUAL_L . . . .  C ADDR   0091H   A      347 348#
-NOT_EIGHT. . . . .  C ADDR   0138H   A      467 471#
-NOT_FIVE . . . . .  C ADDR   0126H   A      455 459#
-NOT_FOUR . . . . .  C ADDR   0120H   A      451 455#
-NOT_NINE . . . . .  C ADDR   013EH   A      471 475#
-NOT_ONE. . . . . .  C ADDR   010EH   A      432 439 443#
-NOT_SEVEN. . . . .  C ADDR   0132H   A      463 467#
-NOT_SIX. . . . . .  C ADDR   012CH   A      459 463#
-NOT_THREE. . . . .  C ADDR   011AH   A      447 451#
-NOT_TWO. . . . . .  C ADDR   0114H   A      443 447#
-NOT_ZERO . . . . .  C ADDR   0108H   A      439# 475
-OLD_BUTTONS. . . .  D ADDR   0031H   A      240# 424 425 426
 OSCICN . . . . . .  D ADDR   00B2H   A      64#
 OSCXCN . . . . . .  D ADDR   00B1H   A      63#
-OUTER_LOOP . . . .  C ADDR   00ECH   A      417# 419
 OV . . . . . . . .  B ADDR   00D0H.2 A      201#
-OVER . . . . . . .  C ADDR   0144H   A      394 398 479#
 P. . . . . . . . .  B ADDR   00D0H.0 A      199#
 P0 . . . . . . . .  D ADDR   0080H   A      16#
 P0MDOUT. . . . . .  D ADDR   00A4H   A      50#
-P1 . . . . . . . .  D ADDR   0090H   A      32# 271 306
+P1 . . . . . . . .  D ADDR   0090H   A      32# 241
 P1MDIN . . . . . .  D ADDR   00BDH   A      73#
 P1MDOUT. . . . . .  D ADDR   00A5H   A      51#
-P2 . . . . . . . .  D ADDR   00A0H   A      47# 255 256 392 422 430 472 476
+P2 . . . . . . . .  D ADDR   00A0H   A      47# 242 243 244 245
 P2MDOUT. . . . . .  D ADDR   00A6H   A      52#
-P3 . . . . . . . .  D ADDR   00B0H   A      62# 391 393 429 440 444 448 452 456 460 464 468
+P3 . . . . . . . .  D ADDR   00B0H   A      62# 241
 P3IF . . . . . . .  D ADDR   00ADH   A      59#
 P3MDOUT. . . . . .  D ADDR   00A7H   A      53#
 P4 . . . . . . . .  D ADDR   0084H   A      20#
 P5 . . . . . . . .  D ADDR   0085H   A      21#
-A51 MACRO ASSEMBLER  PINGPONG                                                             02/27/2024 16:57:25 PAGE    11
-
 P6 . . . . . . . .  D ADDR   0086H   A      22#
 P7 . . . . . . . .  D ADDR   0096H   A      38#
 P74OUT . . . . . .  D ADDR   00B5H   A      65#
@@ -680,9 +386,6 @@ PCA0H. . . . . . .  D ADDR   00F9H   A      131#
 PCA0L. . . . . . .  D ADDR   00E9H   A      115#
 PCA0MD . . . . . .  D ADDR   00D9H   A      100#
 PCON . . . . . . .  D ADDR   0087H   A      23#
-POSITION . . . . .  D ADDR   0030H   A      239# 268 303 346 359 377 385 389 396 431
-PROCEED. . . . . .  C ADDR   0042H   A      294 298#
-PROCEED_L. . . . .  C ADDR   0077H   A      329 333#
 PS . . . . . . . .  B ADDR   00B8H.4 A      176#
 PSCTL. . . . . . .  D ADDR   008FH   A      31#
 PSW. . . . . . . .  D ADDR   00D0H   A      91# 199 200 201 202 203 204 205 206
@@ -693,6 +396,8 @@ PX0. . . . . . . .  B ADDR   00B8H.0 A      172#
 PX1. . . . . . . .  B ADDR   00B8H.2 A      174#
 RB8. . . . . . . .  B ADDR   0098H.2 A      155#
 RCAP2H . . . . . .  D ADDR   00CBH   A      87#
+A51 MACRO ASSEMBLER  LAB_2                                                                01/22/2024 14:47:39 PAGE     7
+
 RCAP2L . . . . . .  D ADDR   00CAH   A      86#
 RCAP4H . . . . . .  D ADDR   00E5H   A      111#
 RCAP4L . . . . . .  D ADDR   00E4H   A      110#
@@ -700,12 +405,10 @@ RCLK . . . . . . .  B ADDR   00C8H.5 A      194#
 REF0CN . . . . . .  D ADDR   00D1H   A      92#
 REN. . . . . . . .  B ADDR   0098H.4 A      157#
 RI . . . . . . . .  B ADDR   0098H.0 A      153#
-RIGHT_SIDE . . . .  C ADDR   0017H   A      268# 301
 RS0. . . . . . . .  B ADDR   00D0H.3 A      202#
 RS1. . . . . . . .  B ADDR   00D0H.4 A      203#
 RSTSRC . . . . . .  D ADDR   00EFH   A      121#
 RXOVRN . . . . . .  B ADDR   00F8H.4 A      232#
-R_CONFIG . . . . .  D ADDR   0033H   A      242# 289 324 360
 SADDR0 . . . . . .  D ADDR   00A9H   A      55#
 SADDR1 . . . . . .  D ADDR   00F3H   A      125#
 SADEN0 . . . . . .  D ADDR   00B9H   A      69#
@@ -723,14 +426,10 @@ SMB0ADR. . . . . .  D ADDR   00C3H   A      79#
 SMB0CN . . . . . .  D ADDR   00C0H   A      76# 180 181 182 183 184 185 186
 SMB0CR . . . . . .  D ADDR   00CFH   A      90#
 SMB0DAT. . . . . .  D ADDR   00C2H   A      78#
-A51 MACRO ASSEMBLER  PINGPONG                                                             02/27/2024 16:57:25 PAGE    12
-
 SMB0STA. . . . . .  D ADDR   00C1H   A      77#
 SMBFTE . . . . . .  B ADDR   00C0H.1 A      181#
 SMBTOE . . . . . .  B ADDR   00C0H.0 A      180#
 SP . . . . . . . .  D ADDR   0081H   A      17#
-SPEEDY . . . . . .  C ADDR   0040H   A      292 296#
-SPEEDY_L . . . . .  C ADDR   0075H   A      327 331#
 SPI0CFG. . . . . .  D ADDR   009AH   A      41#
 SPI0CKR. . . . . .  D ADDR   009DH   A      44#
 SPI0CN . . . . . .  D ADDR   00F8H   A      130# 228 229 230 231 232 233 234 235
@@ -738,9 +437,7 @@ SPI0DAT. . . . . .  D ADDR   009BH   A      42#
 SPIEN. . . . . . .  B ADDR   00F8H.0 A      228#
 SPIF . . . . . . .  B ADDR   00F8H.7 A      235#
 STA. . . . . . . .  B ADDR   00C0H.5 A      185#
-START_SIDE . . . .  B ADDR   0020H.0 A      246# 258 260 264
 STO. . . . . . . .  B ADDR   00C0H.4 A      184#
-S_CONFIG . . . . .  D ADDR   0034H   A      243# 282 291 317 326
 T2CON. . . . . . .  D ADDR   00C8H   A      84# 189 190 191 192 193 194 195 196
 T4CON. . . . . . .  D ADDR   00C9H   A      85#
 TB8. . . . . . . .  B ADDR   0098H.3 A      156#
@@ -767,12 +464,14 @@ TMR3RLL. . . . . .  D ADDR   0092H   A      34#
 TR0. . . . . . . .  B ADDR   0088H.4 A      147#
 TR1. . . . . . . .  B ADDR   0088H.6 A      149#
 TR2. . . . . . . .  B ADDR   00C8H.2 A      191#
+A51 MACRO ASSEMBLER  LAB_2                                                                01/22/2024 14:47:39 PAGE     8
+
 TXBSY. . . . . . .  B ADDR   00F8H.3 A      231#
 WCOL . . . . . . .  B ADDR   00F8H.6 A      234#
-WDTCN. . . . . . .  D ADDR   00FFH   A      137# 251 252
+WDTCN. . . . . . .  D ADDR   00FFH   A      137# 238 239
 XBR0 . . . . . . .  D ADDR   00E1H   A      107#
 XBR1 . . . . . . .  D ADDR   00E2H   A      108#
-XBR2 . . . . . . .  D ADDR   00E3H   A      109# 253
+XBR2 . . . . . . .  D ADDR   00E3H   A      109# 240
 
 
 REGISTER BANK(S) USED: 0 

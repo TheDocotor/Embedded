@@ -1,0 +1,12 @@
+$include (c8051f020.inc)
+cseg
+mov wdtcn, #0DEh	;disable watchdog
+mov wdtcn, #0ADh 
+mov xbr2, #40h
+loop: mov p3, p1
+			mov c, p2.6
+			mov p2.0, c
+			mov c, p2.7
+			mov p2.1, c
+			jmp loop
+			end

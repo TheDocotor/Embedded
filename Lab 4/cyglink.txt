@@ -1,0 +1,1 @@
+"C:\Users\enslo_l5het9y\Documents\Embedded\Lab 4\lab4.obj"  TO "C:\Users\enslo_l5het9y\Documents\Embedded\Lab 4\Magic_8_Ball" RS(256) PL(68) PW(78) 

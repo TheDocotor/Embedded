@@ -1,0 +1,1 @@
+"C:\Users\enslo_l5het9y\Documents\Embedded\Lab 3\tugowar.obj"  TO "C:\Users\enslo_l5het9y\Documents\Embedded\Lab 3\tugowar" RS(256) PL(68) PW(78) 
