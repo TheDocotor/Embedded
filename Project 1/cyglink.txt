@@ -1,1 +1,1 @@
-"C:\Users\enslo_l5het9y\Documents\Embedded\Project 1\pingpong.obj"  TO "C:\Users\enslo_l5het9y\Documents\Embedded\Project 1\PingPong" RS(256) PL(68) PW(78) 
+"C:\Users\enslo_l5het9y\Documents\Embedded\Embedded\Project 1\pingpong.obj"  TO "C:\Users\enslo_l5het9y\Documents\Embedded\Embedded\Project 1\PingPong" RS(256) PL(68) PW(78) 
