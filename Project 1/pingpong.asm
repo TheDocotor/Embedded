@@ -15,9 +15,9 @@
 ;
 ; Date            Version        Description
 ; ----            -------        -----------
-; 2/6/2024    V0.1            Initial version
-; 2/27/2024 	V1.0						First Working Version
-; 2/28/2024 	V1.1 						Added Comments for clarity
+; 2/8/2024    		V0.1           Initial version
+; 2/27/2024 			V1.0					 First Working Version
+; 2/28/2024 			V1.1 					 Added Comments for clarity
 ;==========================================================
 $include(c8051f020.inc)
 
@@ -49,6 +49,13 @@ direction: 		dbit 1		;1 Moving right, 0 moving left
 		jnb start_side, left_side	;Jumps to left serve if start side 0, else continues onto right side
 
 ;---------------------------------Right side config and wait for right button to serve---------------------------------------------------------
+;Purpose: Configuration of game and wait for right side to press button to serve the ball.
+;
+;Inputs: P1
+;Outputs: L_config, R_config, S_config, position
+;
+;Destroyed Registers:R0: Loaded with Count, R1: loads dip switches, Acc
+;----------------------------------------------------------------------------------------------------------------------------------------------
 
 right_side: mov position, #00h	;sets led to far right
 					call display				
@@ -83,6 +90,13 @@ proceed:	mov count, R0					;Count will be used as the number of times delay is c
 					jmp right_side				;If no button press loop back
 
 ;---------------------------------Left side config and wait for left button to serve---------------------------------------------------------
+;Purpose: Configuration of game and wait for left side to press button to serve the ball.
+;
+;Inputs: P1
+;Outputs: L_config, R_config, S_config, position, count
+;
+;Destroyed Registers:R0: Loaded with Count, R1: loads dip switches, Acc
+;---------------------------------------------------------------------------------------------------------------------------------------------
 
 left_side:	mov position, #09h	;sets led to far left
 						call display		
@@ -116,13 +130,23 @@ proceed_l:	mov count, R0				;Count will be used as the number of times delay is 
 						jb ACC.6, main			;If left button has been pressed move on
 						jmp left_side				;If no button press loop back
 
-;---------------------------------------MAIN------------------------------------------------
+;---------------------------------------MAIN--------------------------------------------------
+;Purpose: Makes sure the game is updating every 10ms by calling delay and checking the buttons
+;---------------------------------------------------------------------------------------------
 
 main:	call DELAY			;call delay to ensure buttons are checked every 10ms
 			jmp check_dir		;Check which way ball is moving and do subsequent actions
 			jmp main
 				
 ;-----------------------Right or Left Window Check and Return the ball if in window and button pressed------------------
+;Purpose: Checks the which direction the ball is currently travels, sees if it's in the window, and checks if the button
+;was pressed
+;
+;Inputs: direction, position, l_config, r_config
+;Outputs: direction
+;
+;Destroyed Registers:Acc
+;------------------------------------------------------------------------------------------------------------------------
 
 check_dir: 	jnb direction, check_left_window ;If moving left check if ball is in left window
 						jmp check_right_window					 ;Else check if we are in the right window
@@ -152,6 +176,13 @@ GREATER:	CALL check_buttons		;Updates the buttons 10ms no matter the outcome
 					LJMP mov_led					;This section could be removed and consolidated to one Greater condition
 
 ;---------------------Moves LED Left or Right Depending on Direction-------------------------------------------
+;Purpose: Moves LED right or left if count hits zero, else it returns to main and decrements count
+;
+;Inputs: direction, count
+;Outputs: count, position
+;
+;Destroyed Registers:None
+;--------------------------------------------------------------------------------------------------------------
 mov_led:	jnb direction, l_led	;If direction is 0 move led to the left
 					djnz count, mov_on		;Decrement count until 0 to run full 80 or 250 ms depending on speed configuration
 					mov count, R0					;Reset count once it has reached 0
@@ -166,7 +197,15 @@ l_led:		djnz count, mov_on		;Decrement count until 0 to run full 80 or 250 ms de
 					inc position					;Move led to the left
 					LJMP End_Game					;After led has moved see if game is over
 
-;----------------------Game over Criteria------------------------------------------					
+;----------------------Game over Criteria------------------------------------------------------
+;Purpose: Checks if the position is overflowed from zero to FF or if it reached 10 and ends the 
+;game, else it returns back to mov_on
+;
+;Inputs: position 
+;Outputs: LED
+;
+;Destroyed Registers:Acc
+;-----------------------------------------------------------------------------------------------					
 End_Game: 	mov 	A, position
         		CJNE 	A, #0FFh, TEN	 	;If position has run over 0 then the game over else check other condition
 						ORL   P3, #0FFh				;Turns off LEDs due to a bug that lights the 1st and last LED
@@ -179,6 +218,13 @@ TEN:   			mov   A, position
         		SJMP  OVER		
 
 ;----------------------Time delay of 10ms-------------------------------------------
+;Purpose: A 10ms time delay
+;
+;Inputs: None
+;Outputs: None
+;
+;Destroyed Registers:R2, R3
+;------------------------------------------------------------------------------------
 DELAY:					mov 	R2, #67						;Load R2 with 67
 outer_loop:   	mov 	R3, #100 					;Load R3 with 100 		100 * 67 * 1.5 us = 10ish ms
 nested_loop:  	DJNZ 	R3, nested_loop		;Stay here till R3 = 0
@@ -186,6 +232,13 @@ nested_loop:  	DJNZ 	R3, nested_loop		;Stay here till R3 = 0
         				RET
 
 ;------------------------Check The Buttons-----------------------------------------------
+;Purpose: Checks the buttons and updates them accordingly
+;
+;Inputs: P2
+;Outputs: None
+;
+;Destroyed Registers:Acc
+;------------------------------------------------------------------------------------------
 Check_buttons: 	mov A, P2
         				cpl A                           ; CPL inputs since they are active low
         				XCH A, old_buttons              ; takes the input of the new buttons and stores it, passes the old buttons into acc
@@ -193,6 +246,13 @@ Check_buttons: 	mov A, P2
         				ANL A, old_buttons              ; If buttons are different and pressed they stay
         				RET
 ;---------------------------Display Update-----------------------------------------------
+;Purpose: Lights up current position in the LED
+;
+;Inputs: position
+;Outputs: LEDs
+;
+;Destroyed Registers:P3, P2, Acc
+;-----------------------------------------------------------------------------------------
 Display: 	ORL P3, #0FFh			;Turn off All LEDS	
          	ORL P2, #03h
          	mov A, position		;Load the current position of the LED
@@ -238,6 +298,13 @@ not_eight: 	CJNE A, #08h, not_nine		;check if position is 8
 not_nine: 	CJNE A, #09h, not_zero		;check if position is 9
         	CLR P2.1
         	RET				
-;---------------------GAME OVER-----------------------------
+;---------------------GAME OVER----------------------------------------------------------
+;Purpose: End of Program
+;
+;Inputs: None
+;Outputs: None
+;
+;Destroyed Registers:None
+;-----------------------------------------------------------------------------------------
 OVER:			
 		end
