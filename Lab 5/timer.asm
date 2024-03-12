@@ -76,7 +76,7 @@ timer2: call display
 				mov time, A
 
 continue:call check_buttons
-				jb acc.4, reset
+				jb acc.4, clear
 				jnb acc.6, return 
 				jb start, stop
 				cpl start

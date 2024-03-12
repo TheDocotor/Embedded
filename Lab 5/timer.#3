@@ -118,7 +118,8 @@ run: 	setb start
 clear: 	mov time, #00h
 				reti
 
-report: mov A, R0
+report: mov r0, time
+				mov A, r0
 				anl A,#0F0h
 				swap A
 				add A, #30h

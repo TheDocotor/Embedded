@@ -1,4 +1,4 @@
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     1
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:35:58 PAGE     1
 
 
 MACRO ASSEMBLER A51 V8.2.7.0
@@ -65,7 +65,7 @@ LOC  OBJ            LINE     SOURCE
   00AA          +1    56     ADC1CN  DATA  0AAH   ; ADC 1 CONTROL
   00AB          +1    57     ADC1CF   DATA  0ABH   ; ADC 1 ANALOG MUX CONFIGURATION
   00AC          +1    58     AMX1SL   DATA  0ACH   ; ADC 1 ANALOG MUX CHANNEL SELECT
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     2
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:35:58 PAGE     2
 
   00AD          +1    59     P3IF     DATA  0ADH   ; PORT 3 EXTERNAL INTERRUPT FLAGS
   00AE          +1    60     SADEN1   DATA  0AEH   ; SERIAL PORT 1 SLAVE ADDRESS MASK
@@ -133,7 +133,7 @@ LOC  OBJ            LINE     SOURCE
   00F0          +1   122     B        DATA  0F0H   ; B REGISTER
   00F1          +1   123     SCON1    DATA  0F1H   ; SERIAL PORT 1 CONTROL
   00F2          +1   124     SBUF1    DATA  0F2H   ; SERAIL PORT 1 DATA
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     3
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:35:58 PAGE     3
 
   00F3          +1   125     SADDR1   DATA  0F3H   ; SERAIL PORT 1 
   00F4          +1   126     TL4      DATA  0F4H   ; TIMER 4 DATA - LOW BYTE
@@ -201,7 +201,7 @@ LOC  OBJ            LINE     SOURCE
                 +1   188     ; T2CON C8H
   00C8          +1   189     CPRL2    BIT   T2CON.0 ; CAPTURE OR RELOAD SELECT
   00C9          +1   190     CT2      BIT   T2CON.1 ; TIMER OR COUNTER SELECT
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     4
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:35:58 PAGE     4
 
   00CA          +1   191     TR2      BIT   T2CON.2 ; TIMER 2 ON/OFF CONTROL
   00CB          +1   192     EXEN2    BIT   T2CON.3 ; TIMER 2 EXTERNAL ENABLE FLAG
@@ -269,7 +269,7 @@ LOC  OBJ            LINE     SOURCE
 ----                 254                                     dseg at 30h
 0030                 255     old_buttons:    ds 1
 0031                 256     count:                          ds 1
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     5
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:35:58 PAGE     5
 
 0032                 257     time:                                   ds 1
 0033                 258     tcnt:                                   ds 1
@@ -331,13 +331,13 @@ LOC  OBJ            LINE     SOURCE
 0097 F532            311                                     mov time, A
                      312     
 0099 310D            313     continue:call check_buttons
-009B 20E410          314                                     jb acc.4, reset
+009B 20E430          314                                     jb acc.4, clear
 009E 30E609          315                                     jnb acc.6, return 
 00A1 200107          316                                     jb start, stop
 00A4 B201            317                                     cpl start
                      318                                     ;mov time, #00h
                      319                                     ;Increment count
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     6
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:35:58 PAGE     6
 
 00A6 0531            320                                     inc count
 00A8 E531            321                                     mov A, count
@@ -405,7 +405,7 @@ LOC  OBJ            LINE     SOURCE
 0102 32              383                                     reti
                      384     
 0103 B40406          385     tcnt4:  cjne a, #04h, tcnt5
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     7
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:35:58 PAGE     7
 
 0106 75990A          386                                     mov sbuf0, #0Ah;next line
 0109 0533            387                                     inc tcnt
@@ -432,7 +432,7 @@ LOC  OBJ            LINE     SOURCE
 0122 22              404                                             RET
                      405     
                      406                                             end
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     8
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:35:58 PAGE     8
 
 XREF SYMBOL TABLE LISTING
 ---- ------ ----- -------
@@ -475,7 +475,7 @@ CCF4 . . . . . . .  B ADDR   00D8H.4 A      213#
 CF . . . . . . . .  B ADDR   00D8H.7 A      215#
 CHECK_BUTTONS. . .  C ADDR   010DH   A      313 392#
 CKCON. . . . . . .  D ADDR   008EH   A      30#
-CLEAR. . . . . . .  C ADDR   00CEH   A      343 353#
+CLEAR. . . . . . .  C ADDR   00CEH   A      314 343 353#
 CONTINUE . . . . .  C ADDR   0099H   A      303 313#
 COUNT. . . . . . .  D ADDR   0031H   A      256# 266 304 305 307 320 321
 CPRL2. . . . . . .  B ADDR   00C8H.0 A      189#
@@ -500,7 +500,7 @@ EIP1 . . . . . . .  D ADDR   00F6H   A      128#
 EIP2 . . . . . . .  D ADDR   00F7H   A      129#
 EMI0CF . . . . . .  D ADDR   00A3H   A      49#
 EMI0CN . . . . . .  D ADDR   00AFH   A      61#
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     9
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:35:58 PAGE     9
 
 EMI0TC . . . . . .  D ADDR   00A1H   A      48#
 ENSMB. . . . . . .  B ADDR   00C0H.6 A      186#
@@ -568,7 +568,7 @@ PCA0H. . . . . . .  D ADDR   00F9H   A      131#
 PCA0L. . . . . . .  D ADDR   00E9H   A      115#
 PCA0MD . . . . . .  D ADDR   00D9H   A      100#
 PCON . . . . . . .  D ADDR   0087H   A      23#
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE    10
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:35:58 PAGE    10
 
 PS . . . . . . . .  B ADDR   00B8H.4 A      176#
 PSCTL. . . . . . .  D ADDR   008FH   A      31#
@@ -589,7 +589,7 @@ READ0. . . . . . .  C ADDR   002FH   A      241 249#
 REF0CN . . . . . .  D ADDR   00D1H   A      92#
 REN. . . . . . . .  B ADDR   0098H.4 A      157#
 REPORT . . . . . .  C ADDR   00D2H   A      345 356#
-RESET. . . . . . .  C ADDR   00AEH   A      314 333#
+RESET. . . . . . .  C ADDR   00AEH   A      333#
 RETURN . . . . . .  C ADDR   00AAH   A      306 315 328# 344
 RI . . . . . . . .  B ADDR   0098H.0 A      153# 241
 RS0. . . . . . . .  B ADDR   00D0H.3 A      202#
@@ -636,7 +636,7 @@ TB8. . . . . . . .  B ADDR   0098H.3 A      156#
 TCLK . . . . . . .  B ADDR   00C8H.4 A      193#
 TCNT . . . . . . .  D ADDR   0033H   A      258# 268 362 365 368 371 377 382 387
 TCNT0. . . . . . .  C ADDR   0032H   A      242 250#
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE    11
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:35:58 PAGE    11
 
 TCNT1. . . . . . .  C ADDR   00E0H   A      250 365#
 TCNT2. . . . . . .  C ADDR   00EBH   A      366 371#
