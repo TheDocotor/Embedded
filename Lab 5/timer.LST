@@ -1,4 +1,4 @@
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 15:25:23 PAGE     1
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     1
 
 
 MACRO ASSEMBLER A51 V8.2.7.0
@@ -65,7 +65,7 @@ LOC  OBJ            LINE     SOURCE
   00AA          +1    56     ADC1CN  DATA  0AAH   ; ADC 1 CONTROL
   00AB          +1    57     ADC1CF   DATA  0ABH   ; ADC 1 ANALOG MUX CONFIGURATION
   00AC          +1    58     AMX1SL   DATA  0ACH   ; ADC 1 ANALOG MUX CHANNEL SELECT
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 15:25:23 PAGE     2
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     2
 
   00AD          +1    59     P3IF     DATA  0ADH   ; PORT 3 EXTERNAL INTERRUPT FLAGS
   00AE          +1    60     SADEN1   DATA  0AEH   ; SERIAL PORT 1 SLAVE ADDRESS MASK
@@ -133,7 +133,7 @@ LOC  OBJ            LINE     SOURCE
   00F0          +1   122     B        DATA  0F0H   ; B REGISTER
   00F1          +1   123     SCON1    DATA  0F1H   ; SERIAL PORT 1 CONTROL
   00F2          +1   124     SBUF1    DATA  0F2H   ; SERAIL PORT 1 DATA
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 15:25:23 PAGE     3
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     3
 
   00F3          +1   125     SADDR1   DATA  0F3H   ; SERAIL PORT 1 
   00F4          +1   126     TL4      DATA  0F4H   ; TIMER 4 DATA - LOW BYTE
@@ -201,7 +201,7 @@ LOC  OBJ            LINE     SOURCE
                 +1   188     ; T2CON C8H
   00C8          +1   189     CPRL2    BIT   T2CON.0 ; CAPTURE OR RELOAD SELECT
   00C9          +1   190     CT2      BIT   T2CON.1 ; TIMER OR COUNTER SELECT
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 15:25:23 PAGE     4
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     4
 
   00CA          +1   191     TR2      BIT   T2CON.2 ; TIMER 2 ON/OFF CONTROL
   00CB          +1   192     EXEN2    BIT   T2CON.3 ; TIMER 2 EXTERNAL ENABLE FLAG
@@ -250,166 +250,189 @@ LOC  OBJ            LINE     SOURCE
   00FF          +1   235     SPIF     BIT   SPI0CN.7 ; SPI 0 INTERRUPT FLAG
                      236     
 0000                 237     org 00h
-0000 802D            238     jmp begin
-002B                 239     org 2Bh
-002B C2CF            240     T2_isr: clr TF2
-002D 804B            241                                     jmp timer2
-                     242                                     ;increment our count here
-                     243     
-----                 244                                     dseg at 30h
-0030                 245     old_buttons:    ds 1
-0031                 246     count:                          ds 1
-0032                 247     time:                                   ds 1
-0033                 248     tcnt:                                   ds 1
-  0001               249     start                           bit 1
-                     250     
-----                 251     cseg
-002F                 252     begin:
-002F 75FFDE          253     mov wdtcn, #0DEh                ;disable watchdog
-0032 75FFAD          254     mov wdtcn, #0ADh
-                     255     ;Initalize Variables
-0035 753100          256     mov count, #00h
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 15:25:23 PAGE     5
+0000 8033            238     jmp begin
+                     239     
+0023                 240     org 23h
+0023 109809          241     serial_isr: jbc ri, read0
+0026 109909          242                                                     jbc ti, tcnt0
+0029 32              243                                                     reti
+                     244     
+002B                 245     org 2Bh
+002B C2CF            246     T2_isr: clr TF2
+002D 8054            247                                     jmp timer2
+                     248     
+002F 0200B4          249     read0: ljmp read
+0032 0200E0          250     tcnt0: ljmp tcnt1
+                     251     
+                     252                                     ;increment our count here
+                     253     
+----                 254                                     dseg at 30h
+0030                 255     old_buttons:    ds 1
+0031                 256     count:                          ds 1
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     5
 
-0038 753200          257     mov time, #00h
-003B 753300          258     mov tcnt, #00h
-003E C201            259     clr start
-0040 75E340          260     mov xbr2, #40h
-                     261     
-0043 75B167          262     mov oscxcn, #67h
-0046 758920          263     mov             TMOD, #20h              ;Set up timers
-0049 758D59          264                             mov             th1, #256-167   ; 2MHz clock, 167 counts = 1ms
-004C D28E            265                             setb    tr1
-                     266     
-004E 308FFD          267     wait_0:         jnb     tf1, wait_0
-0051 C28E            268                                     CLR TR1                                         ;1ms elapse
-                             d, stop timer
-0053 C28F            269                                     CLR TF1
-                     270     
-0055 E5B1            271     wait_1: mov a, oscxcn                   ;wait for clock to warm up
-0057 30E7FB          272                                     jnb     acc.7, wait_1
-005A 75B208          273                                     mov     oscicn, #8              ;Now using the 22.1184 MHz
-005D 759850          274                                     mov     scon0, #50h     ;8-bit, 1 stop bit, REN
-0060 758DFA          275                                     mov th1, #-6                    ;Loads value for 9600 buad 
-                             serial com
-0063 D28E            276                                     setb    tr1                                     ;Start the 
-                             serial com timer
+0032                 257     time:                                   ds 1
+0033                 258     tcnt:                                   ds 1
+  0001               259     start                           bit 1
+                     260     
+----                 261     cseg
+0035                 262     begin:
+0035 75FFDE          263     mov wdtcn, #0DEh                ;disable watchdog
+0038 75FFAD          264     mov wdtcn, #0ADh
+                     265     ;Initalize Variables
+003B 753100          266     mov count, #00h
+003E 753200          267     mov time, #00h
+0041 753300          268     mov tcnt, #00h
+0044 C201            269     clr start
+0046 75E340          270     mov xbr2, #40h
+0049 75E104          271     mov xbr0, #04h
+                     272     
+004C 75B167          273     mov oscxcn, #67h
+004F 758920          274     mov             TMOD, #20h              ;Set up timers
+0052 758D59          275                             mov             th1, #256-167   ; 2MHz clock, 167 counts = 1ms
+0055 D28E            276                             setb    tr1
                      277     
-0065 75CBB8          278     mov RCAP2H, #High(-18432)
-0068 75CA00          279     mov RCAP2L, #Low(-18432)
-006B 75CDB8          280     mov TH2, #High(-18432)
-006E 75CC00          281     mov TL2, #Low(-18432)
-0071 C2C8            282     clr t2con.0
-0073 D2CA            283     setb TR2
-0075 75A8B0          284     mov IE, #0B0h
-                     285     
-                     286     
-                     287     
-0078 80FE            288     main:   jmp main
-                     289     
-                     290     
-007A 11DE            291     timer2: call display
-007C 300111          292                                     jnb start, continue
-007F 0531            293                                     inc count
-0081 E531            294                                     mov A, count
-0083 B40A1B          295                                     cjne a, #10, return
-0086 753100          296                                     mov count, #00h
-0089 E532            297                                     mov A, time
-008B 2401            298                                     add A, #1
-008D D4              299                                     da  A
-008E F532            300                                     mov time, A
+0057 308FFD          278     wait_0:         jnb     tf1, wait_0
+005A C28E            279                                     CLR TR1                                         ;1ms elapse
+                             d, stop timer
+005C C28F            280                                     CLR TF1
+                     281     
+005E E5B1            282     wait_1: mov a, oscxcn                   ;wait for clock to warm up
+0060 30E7FB          283                                     jnb     acc.7, wait_1
+0063 75B208          284                                     mov     oscicn, #8              ;Now using the 22.1184 MHz
+0066 759850          285                                     mov     scon0, #50h     ;8-bit, 1 stop bit, REN
+0069 758DFA          286                                     mov th1, #-6                    ;Loads value for 9600 buad 
+                             serial com
+006C D28E            287                                     setb    tr1                                     ;Start the 
+                             serial com timer
+                     288     
+006E 75CBB8          289     mov RCAP2H, #High(-18432)
+0071 75CA00          290     mov RCAP2L, #Low(-18432)
+0074 75CDB8          291     mov TH2, #High(-18432)
+0077 75CC00          292     mov TL2, #Low(-18432)
+007A C2C8            293     clr t2con.0
+007C D2CA            294     setb TR2
+007E 75A8B0          295     mov IE, #0B0h
+                     296     
+                     297     
+                     298     
+0081 80FE            299     main:   jmp main
+                     300     
                      301     
-0090 11D4            302     continue:call check_buttons
-0092 20E439          303                                     jb acc.4, reset
-0095 30E609          304                                     jnb acc.6, return 
-0098 200107          305                                     jb start, stop
-009B B201            306                                     cpl start
-                     307                                     ;mov time, #00h
-                     308                                     ;Increment count
-009D 0531            309                                     inc count
-009F E531            310                                     mov A, count
-                     311                                     ;cjne a, #10, return
-                     312                                     ;mov A, time
-                     313                                     ;add A, #1
-                     314                                     ;da  A
-                     315                                     ;mov time, A
-                     316     
-00A1 32              317     return: reti
-                     318     
-00A2 A832            319     Stop:   mov R0, time
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 15:25:23 PAGE     6
+0083 3117            302     timer2: call display
+0085 300111          303                                     jnb start, continue
+0088 0531            304                                     inc count
+008A E531            305                                     mov A, count
+008C B40A1B          306                                     cjne a, #10, return
+008F 753100          307                                     mov count, #00h
+0092 E532            308                                     mov A, time
+0094 2401            309                                     add A, #1
+0096 D4              310                                     da  A
+0097 F532            311                                     mov time, A
+                     312     
+0099 310D            313     continue:call check_buttons
+009B 20E410          314                                     jb acc.4, reset
+009E 30E609          315                                     jnb acc.6, return 
+00A1 200107          316                                     jb start, stop
+00A4 B201            317                                     cpl start
+                     318                                     ;mov time, #00h
+                     319                                     ;Increment count
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     6
 
-00A4 B201            320                                     cpl start
-                     321                                     ;send first number
-00A6 E8              322                                     mov A, R0
-00A7 54F0            323                                     anl A,#0F0h
-00A9 C4              324                                     swap A
-00AA F599            325                                     mov sbuf0, A
-00AC 0533            326                                     inc tcnt
-00AE 32              327                                     reti
-                     328     
-00AF E533            329     tcnt1:  mov A, tcnt
-00B1 B40106          330                                     cjne a,#01h, tcnt2
-00B4 75992E          331                                     mov sbuf0, #2Eh;period ascii
-00B7 0533            332                                     inc tcnt
-00B9 32              333                                     reti
-                     334     
-00BA E533            335     tcnt2:  mov A, tcnt
-00BC B40208          336                                     cjne a, #02h, tcnt3
-00BF E8              337                                     mov A, R0 
-00C0 540F            338                                     anl a, #0Fh
-00C2 F599            339                                     mov sbuf0, A
-00C4 0533            340                                     inc tcnt
-00C6 32              341                                     reti
-                     342     
-00C7 75990A          343     tcnt3:  mov sbuf0, #0Ah;next line
-00CA 753300          344                                     mov tcnt, #00h
-00CD 32              345                                     reti
-                     346     
-00CE 753200          347     reset:  mov time, #00h
-00D1 C201            348                                     clr start
-00D3 32              349                                     reti
-                     350                                     
-                     351     
+00A6 0531            320                                     inc count
+00A8 E531            321                                     mov A, count
+                     322                                     ;cjne a, #10, return
+                     323                                     ;mov A, time
+                     324                                     ;add A, #1
+                     325                                     ;da  A
+                     326                                     ;mov time, A
+                     327     
+00AA 32              328     return: reti
+                     329     
+00AB C201            330     Stop:   clr start
+00AD 32              331                                     reti
+                     332     
+00AE 753200          333     reset:  mov time, #00h
+00B1 C201            334                                     clr start
+00B3 32              335                                     reti
+                     336     
+00B4 E599            337     read:   mov A, sbuf0
+00B6 B47202          338                                     cjne a, #72h, notr
+00B9 8010            339                                     jmp run
+00BB B47302          340     notr:                           cjne a, #73h, nots
+00BE 80EB            341                                     jmp Stop
+00C0 B46302          342     nots:                           cjne a, #63h, notc
+00C3 8009            343                                     jmp clear
+00C5 B474E2          344     notc:                   cjne a, #74h, return
+00C8 8008            345                                     jmp report
+00CA 32              346                                     reti
+                     347     
+                     348     
+                     349     
+00CB D201            350     run:    setb start
+00CD 32              351                             reti
                      352     
-                     353     
-                     354     ;org 20h
-                     355     ;serial_isr: jbc ri, read
-                     356     ;                                               jbc ti, send
-                     357     ;                                               reti
-                     358     
-00D4                 359     Send: 
-                     360     
-                     361     
-                     362     
-                     363     ;check_ascii:   mov A, char
-                     364     ;                                                       cjne a, #72h, run
-                     365     ;                                                       cjne a, #73h, stop
-                     366     ;                                                       cjne a, #63h, clear
-                     367     ;                                                       cjne a, #74h, report
-                     368     ;                                                       reti
-                     369     
-00D4 E5A0            370     Check_buttons:  mov A, P2
-00D6 F4              371                                             cpl A                           ; CPL inputs since 
-                             they are active low
-00D7 C530            372                                             XCH A, old_buttons              ; takes the input o
-                             f the new buttons and stores it, passes the old buttons into acc
-00D9 6530            373                                             XRL A, old_buttons              ; If the buttons ar
-                             e the same change them to 0's
-00DB 5530            374                                             ANL A, old_buttons              ; If buttons are di
-                             fferent and pressed they stay
-00DD 22              375                                             RET
-                     376     
-00DE 43B0FF          377     Display:        ORL P3, #0FFh                   ;Turn off All LEDS      
-00E1 43A003          378                     ORL P2, #03h
-00E4 E532            379                     mov A, time
-00E6 F4              380                                             cpl A
-00E7 F5B0            381                                             mov P3, A
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 15:25:23 PAGE     7
+00CE 753200          353     clear:  mov time, #00h
+00D1 32              354                                     reti
+                     355     
+00D2 A832            356     report: mov r0, time
+00D4 E8              357                                     mov A, r0
+00D5 54F0            358                                     anl A,#0F0h
+00D7 C4              359                                     swap A
+00D8 2430            360                                     add A, #30h
+00DA F599            361                                     mov sbuf0, A
+00DC 753301          362                                     mov tcnt, #01h
+00DF 32              363                                     reti
+                     364     
+00E0 E533            365     tcnt1:  mov A, tcnt
+00E2 B40106          366                                     cjne a,#01h, tcnt2
+00E5 75992E          367                                     mov sbuf0, #2Eh;period ascii
+00E8 0533            368                                     inc tcnt
+00EA 32              369                                     reti
+                     370     
+00EB E533            371     tcnt2:  mov A, tcnt
+00ED B4020A          372                                     cjne a, #02h, tcnt3
+00F0 E8              373                                     mov A, R0 
+00F1 540F            374                                     anl a, #0Fh
+00F3 2430            375                                     add A, #30h
+00F5 F599            376                                     mov sbuf0, A
+00F7 0533            377                                     inc tcnt
+00F9 32              378                                     reti
+                     379     
+00FA B40306          380     tcnt3:  cjne a, #03h, tcnt4
+00FD 75990D          381                                     mov sbuf0, #0Dh;next line
+0100 0533            382                                     inc tcnt
+0102 32              383                                     reti
+                     384     
+0103 B40406          385     tcnt4:  cjne a, #04h, tcnt5
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     7
 
-00E9 22              382                                             RET
-*** WARNING #A41 IN 382 (timer.asm, LINE 147): MISSING 'END' STATEMENT
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 15:25:23 PAGE     8
+0106 75990A          386                                     mov sbuf0, #0Ah;next line
+0109 0533            387                                     inc tcnt
+010B 32              388                                     reti
+                     389     
+010C 32              390     tcnt5: reti
+                     391     
+010D E5A0            392     Check_buttons:  mov A, P2
+010F F4              393                                             cpl A                           ; CPL inputs since 
+                             they are active low
+0110 C530            394                                             XCH A, old_buttons              ; takes the input o
+                             f the new buttons and stores it, passes the old buttons into acc
+0112 6530            395                                             XRL A, old_buttons              ; If the buttons ar
+                             e the same change them to 0's
+0114 5530            396                                             ANL A, old_buttons              ; If buttons are di
+                             fferent and pressed they stay
+0116 22              397                                             RET
+                     398     
+0117 43B0FF          399     Display:        ORL P3, #0FFh                   ;Turn off All LEDS      
+011A 43A003          400                     ORL P2, #03h
+011D E532            401                     mov A, time
+011F F4              402                                             cpl A
+0120 F5B0            403                                             mov P3, A
+0122 22              404                                             RET
+                     405     
+                     406                                             end
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     8
 
 XREF SYMBOL TABLE LISTING
 ---- ------ ----- -------
@@ -419,7 +442,7 @@ N A M E             T Y P E  V A L U E   ATTRIBUTES / REFERENCES
 
 AA . . . . . . . .  B ADDR   00C0H.2 A      182#
 AC . . . . . . . .  B ADDR   00D0H.6 A      205#
-ACC. . . . . . . .  D ADDR   00E0H   A      106# 272 303 304
+ACC. . . . . . . .  D ADDR   00E0H   A      106# 283 314 315
 AD0BUSY. . . . . .  B ADDR   00E8H.4 A      222#
 AD0EN. . . . . . .  B ADDR   00E8H.7 A      225#
 AD0INT . . . . . .  B ADDR   00E8H.5 A      223#
@@ -443,17 +466,18 @@ AMX0CF . . . . . .  D ADDR   00BAH   A      70#
 AMX0SL . . . . . .  D ADDR   00BBH   A      71#
 AMX1SL . . . . . .  D ADDR   00ACH   A      58#
 B. . . . . . . . .  D ADDR   00F0H   A      122#
-BEGIN. . . . . . .  C ADDR   002FH   A      238 252#
+BEGIN. . . . . . .  C ADDR   0035H   A      238 262#
 CCF0 . . . . . . .  B ADDR   00D8H.0 A      209#
 CCF1 . . . . . . .  B ADDR   00D8H.1 A      210#
 CCF2 . . . . . . .  B ADDR   00D8H.2 A      211#
 CCF3 . . . . . . .  B ADDR   00D8H.3 A      212#
 CCF4 . . . . . . .  B ADDR   00D8H.4 A      213#
 CF . . . . . . . .  B ADDR   00D8H.7 A      215#
-CHECK_BUTTONS. . .  C ADDR   00D4H   A      302 370#
+CHECK_BUTTONS. . .  C ADDR   010DH   A      313 392#
 CKCON. . . . . . .  D ADDR   008EH   A      30#
-CONTINUE . . . . .  C ADDR   0090H   A      292 302#
-COUNT. . . . . . .  D ADDR   0031H   A      246# 256 293 294 296 309 310
+CLEAR. . . . . . .  C ADDR   00CEH   A      343 353#
+CONTINUE . . . . .  C ADDR   0099H   A      303 313#
+COUNT. . . . . . .  D ADDR   0031H   A      256# 266 304 305 307 320 321
 CPRL2. . . . . . .  B ADDR   00C8H.0 A      189#
 CPT0CN . . . . . .  D ADDR   009EH   A      45#
 CPT1CN . . . . . .  D ADDR   009FH   A      46#
@@ -466,7 +490,7 @@ DAC0L. . . . . . .  D ADDR   00D2H   A      93#
 DAC1CN . . . . . .  D ADDR   00D7H   A      98#
 DAC1H. . . . . . .  D ADDR   00D6H   A      97#
 DAC1L. . . . . . .  D ADDR   00D5H   A      96#
-DISPLAY. . . . . .  C ADDR   00DEH   A      291 377#
+DISPLAY. . . . . .  C ADDR   0117H   A      302 399#
 DPH. . . . . . . .  D ADDR   0083H   A      19#
 DPL. . . . . . . .  D ADDR   0082H   A      18#
 EA . . . . . . . .  B ADDR   00A8H.7 A      169#
@@ -476,9 +500,9 @@ EIP1 . . . . . . .  D ADDR   00F6H   A      128#
 EIP2 . . . . . . .  D ADDR   00F7H   A      129#
 EMI0CF . . . . . .  D ADDR   00A3H   A      49#
 EMI0CN . . . . . .  D ADDR   00AFH   A      61#
-EMI0TC . . . . . .  D ADDR   00A1H   A      48#
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 15:25:23 PAGE     9
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE     9
 
+EMI0TC . . . . . .  D ADDR   00A1H   A      48#
 ENSMB. . . . . . .  B ADDR   00C0H.6 A      186#
 ES . . . . . . . .  B ADDR   00A8H.4 A      167#
 ET0. . . . . . . .  B ADDR   00A8H.1 A      164#
@@ -492,18 +516,21 @@ F0 . . . . . . . .  B ADDR   00D0H.5 A      204#
 F1 . . . . . . . .  B ADDR   00D0H.1 A      200#
 FLACL. . . . . . .  D ADDR   00B7H   A      67#
 FLSCL. . . . . . .  D ADDR   00B6H   A      66#
-IE . . . . . . . .  D ADDR   00A8H   A      54# 163 164 165 166 167 168 169 284
+IE . . . . . . . .  D ADDR   00A8H   A      54# 163 164 165 166 167 168 169 295
 IE0. . . . . . . .  B ADDR   0088H.1 A      144#
 IE1. . . . . . . .  B ADDR   0088H.3 A      146#
 IP . . . . . . . .  D ADDR   00B8H   A      68# 172 173 174 175 176 177
 IT0. . . . . . . .  B ADDR   0088H.0 A      143#
 IT1. . . . . . . .  B ADDR   0088H.2 A      145#
-MAIN . . . . . . .  C ADDR   0078H   A      288# 288
+MAIN . . . . . . .  C ADDR   0081H   A      299# 299
 MODF . . . . . . .  B ADDR   00F8H.5 A      233#
 MSTEN. . . . . . .  B ADDR   00F8H.1 A      229#
-OLD_BUTTONS. . . .  D ADDR   0030H   A      245# 372 373 374
-OSCICN . . . . . .  D ADDR   00B2H   A      64# 273
-OSCXCN . . . . . .  D ADDR   00B1H   A      63# 262 271
+NOTC . . . . . . .  C ADDR   00C5H   A      342 344#
+NOTR . . . . . . .  C ADDR   00BBH   A      338 340#
+NOTS . . . . . . .  C ADDR   00C0H   A      340 342#
+OLD_BUTTONS. . . .  D ADDR   0030H   A      255# 394 395 396
+OSCICN . . . . . .  D ADDR   00B2H   A      64# 284
+OSCXCN . . . . . .  D ADDR   00B1H   A      63# 273 282
 OV . . . . . . . .  B ADDR   00D0H.2 A      201#
 P. . . . . . . . .  B ADDR   00D0H.0 A      199#
 P0 . . . . . . . .  D ADDR   0080H   A      16#
@@ -511,9 +538,9 @@ P0MDOUT. . . . . .  D ADDR   00A4H   A      50#
 P1 . . . . . . . .  D ADDR   0090H   A      32#
 P1MDIN . . . . . .  D ADDR   00BDH   A      73#
 P1MDOUT. . . . . .  D ADDR   00A5H   A      51#
-P2 . . . . . . . .  D ADDR   00A0H   A      47# 370 378
+P2 . . . . . . . .  D ADDR   00A0H   A      47# 392 400
 P2MDOUT. . . . . .  D ADDR   00A6H   A      52#
-P3 . . . . . . . .  D ADDR   00B0H   A      62# 377 381
+P3 . . . . . . . .  D ADDR   00B0H   A      62# 399 403
 P3IF . . . . . . .  D ADDR   00ADH   A      59#
 P3MDOUT. . . . . .  D ADDR   00A7H   A      53#
 P4 . . . . . . . .  D ADDR   0084H   A      20#
@@ -541,40 +568,44 @@ PCA0H. . . . . . .  D ADDR   00F9H   A      131#
 PCA0L. . . . . . .  D ADDR   00E9H   A      115#
 PCA0MD . . . . . .  D ADDR   00D9H   A      100#
 PCON . . . . . . .  D ADDR   0087H   A      23#
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE    10
+
 PS . . . . . . . .  B ADDR   00B8H.4 A      176#
 PSCTL. . . . . . .  D ADDR   008FH   A      31#
 PSW. . . . . . . .  D ADDR   00D0H   A      91# 199 200 201 202 203 204 205 206
 PT0. . . . . . . .  B ADDR   00B8H.1 A      173#
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 15:25:23 PAGE    10
-
 PT1. . . . . . . .  B ADDR   00B8H.3 A      175#
 PT2. . . . . . . .  B ADDR   00B8H.5 A      177#
 PX0. . . . . . . .  B ADDR   00B8H.0 A      172#
 PX1. . . . . . . .  B ADDR   00B8H.2 A      174#
 RB8. . . . . . . .  B ADDR   0098H.2 A      155#
-RCAP2H . . . . . .  D ADDR   00CBH   A      87# 278
-RCAP2L . . . . . .  D ADDR   00CAH   A      86# 279
+RCAP2H . . . . . .  D ADDR   00CBH   A      87# 289
+RCAP2L . . . . . .  D ADDR   00CAH   A      86# 290
 RCAP4H . . . . . .  D ADDR   00E5H   A      111#
 RCAP4L . . . . . .  D ADDR   00E4H   A      110#
 RCLK . . . . . . .  B ADDR   00C8H.5 A      194#
+READ . . . . . . .  C ADDR   00B4H   A      249 337#
+READ0. . . . . . .  C ADDR   002FH   A      241 249#
 REF0CN . . . . . .  D ADDR   00D1H   A      92#
 REN. . . . . . . .  B ADDR   0098H.4 A      157#
-RESET. . . . . . .  C ADDR   00CEH   A      303 347#
-RETURN . . . . . .  C ADDR   00A1H   A      295 304 317#
-RI . . . . . . . .  B ADDR   0098H.0 A      153#
+REPORT . . . . . .  C ADDR   00D2H   A      345 356#
+RESET. . . . . . .  C ADDR   00AEH   A      314 333#
+RETURN . . . . . .  C ADDR   00AAH   A      306 315 328# 344
+RI . . . . . . . .  B ADDR   0098H.0 A      153# 241
 RS0. . . . . . . .  B ADDR   00D0H.3 A      202#
 RS1. . . . . . . .  B ADDR   00D0H.4 A      203#
 RSTSRC . . . . . .  D ADDR   00EFH   A      121#
+RUN. . . . . . . .  C ADDR   00CBH   A      339 350#
 RXOVRN . . . . . .  B ADDR   00F8H.4 A      232#
 SADDR0 . . . . . .  D ADDR   00A9H   A      55#
 SADDR1 . . . . . .  D ADDR   00F3H   A      125#
 SADEN0 . . . . . .  D ADDR   00B9H   A      69#
 SADEN1 . . . . . .  D ADDR   00AEH   A      60#
-SBUF0. . . . . . .  D ADDR   0099H   A      40# 325 331 339 343
+SBUF0. . . . . . .  D ADDR   0099H   A      40# 337 361 367 376 381 386
 SBUF1. . . . . . .  D ADDR   00F2H   A      124#
-SCON0. . . . . . .  D ADDR   0098H   A      39# 153 154 155 156 157 158 159 160 274
+SCON0. . . . . . .  D ADDR   0098H   A      39# 153 154 155 156 157 158 159 160 285
 SCON1. . . . . . .  D ADDR   00F1H   A      123#
-SEND . . . . . . .  C ADDR   00D4H   A      359#
+SERIAL_ISR . . . .  C ADDR   0023H   A      241#
 SI . . . . . . . .  B ADDR   00C0H.3 A      183#
 SLVSEL . . . . . .  B ADDR   00F8H.2 A      230#
 SM0. . . . . . . .  B ADDR   0098H.7 A      160#
@@ -595,55 +626,58 @@ SPI0DAT. . . . . .  D ADDR   009BH   A      42#
 SPIEN. . . . . . .  B ADDR   00F8H.0 A      228#
 SPIF . . . . . . .  B ADDR   00F8H.7 A      235#
 STA. . . . . . . .  B ADDR   00C0H.5 A      185#
-START. . . . . . .  B ADDR   0020H.1 A      249# 259 292 305 306 320 348
+START. . . . . . .  B ADDR   0020H.1 A      259# 269 303 316 317 330 334 350
 STO. . . . . . . .  B ADDR   00C0H.4 A      184#
-STOP . . . . . . .  C ADDR   00A2H   A      305 319#
-T2CON. . . . . . .  D ADDR   00C8H   A      84# 189 190 191 192 193 194 195 196 282
-T2_ISR . . . . . .  C ADDR   002BH   A      240#
+STOP . . . . . . .  C ADDR   00ABH   A      316 330# 341
+T2CON. . . . . . .  D ADDR   00C8H   A      84# 189 190 191 192 193 194 195 196 293
+T2_ISR . . . . . .  C ADDR   002BH   A      246#
 T4CON. . . . . . .  D ADDR   00C9H   A      85#
 TB8. . . . . . . .  B ADDR   0098H.3 A      156#
 TCLK . . . . . . .  B ADDR   00C8H.4 A      193#
-TCNT . . . . . . .  D ADDR   0033H   A      248# 258 326 329 332 335 340 344
-TCNT1. . . . . . .  C ADDR   00AFH   A      329#
-TCNT2. . . . . . .  C ADDR   00BAH   A      330 335#
-TCNT3. . . . . . .  C ADDR   00C7H   A      336 343#
+TCNT . . . . . . .  D ADDR   0033H   A      258# 268 362 365 368 371 377 382 387
+TCNT0. . . . . . .  C ADDR   0032H   A      242 250#
+A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 16:25:41 PAGE    11
+
+TCNT1. . . . . . .  C ADDR   00E0H   A      250 365#
+TCNT2. . . . . . .  C ADDR   00EBH   A      366 371#
+TCNT3. . . . . . .  C ADDR   00FAH   A      372 380#
+TCNT4. . . . . . .  C ADDR   0103H   A      380 385#
+TCNT5. . . . . . .  C ADDR   010CH   A      385 390#
 TCON . . . . . . .  D ADDR   0088H   A      24# 143 144 145 146 147 148 149 150
 TF0. . . . . . . .  B ADDR   0088H.5 A      148#
-TF1. . . . . . . .  B ADDR   0088H.7 A      150# 267 269
-TF2. . . . . . . .  B ADDR   00C8H.7 A      196# 240
+TF1. . . . . . . .  B ADDR   0088H.7 A      150# 278 280
+TF2. . . . . . . .  B ADDR   00C8H.7 A      196# 246
 TH0. . . . . . . .  D ADDR   008CH   A      28#
-TH1. . . . . . . .  D ADDR   008DH   A      29# 264 275
-A51 MACRO ASSEMBLER  TIMER                                                                03/12/2024 15:25:23 PAGE    11
-
-TH2. . . . . . . .  D ADDR   00CDH   A      89# 280
+TH1. . . . . . . .  D ADDR   008DH   A      29# 275 286
+TH2. . . . . . . .  D ADDR   00CDH   A      89# 291
 TH4. . . . . . . .  D ADDR   00F5H   A      127#
-TI . . . . . . . .  B ADDR   0098H.1 A      154#
-TIME . . . . . . .  D ADDR   0032H   A      247# 257 297 300 319 347 379
-TIMER2 . . . . . .  C ADDR   007AH   A      241 291#
+TI . . . . . . . .  B ADDR   0098H.1 A      154# 242
+TIME . . . . . . .  D ADDR   0032H   A      257# 267 308 311 333 353 356 401
+TIMER2 . . . . . .  C ADDR   0083H   A      247 302#
 TL0. . . . . . . .  D ADDR   008AH   A      26#
 TL1. . . . . . . .  D ADDR   008BH   A      27#
-TL2. . . . . . . .  D ADDR   00CCH   A      88# 281
+TL2. . . . . . . .  D ADDR   00CCH   A      88# 292
 TL4. . . . . . . .  D ADDR   00F4H   A      126#
-TMOD . . . . . . .  D ADDR   0089H   A      25# 263
+TMOD . . . . . . .  D ADDR   0089H   A      25# 274
 TMR3CN . . . . . .  D ADDR   0091H   A      33#
 TMR3H. . . . . . .  D ADDR   0095H   A      37#
 TMR3L. . . . . . .  D ADDR   0094H   A      36#
 TMR3RLH. . . . . .  D ADDR   0093H   A      35#
 TMR3RLL. . . . . .  D ADDR   0092H   A      34#
 TR0. . . . . . . .  B ADDR   0088H.4 A      147#
-TR1. . . . . . . .  B ADDR   0088H.6 A      149# 265 268 276
-TR2. . . . . . . .  B ADDR   00C8H.2 A      191# 283
+TR1. . . . . . . .  B ADDR   0088H.6 A      149# 276 279 287
+TR2. . . . . . . .  B ADDR   00C8H.2 A      191# 294
 TXBSY. . . . . . .  B ADDR   00F8H.3 A      231#
-WAIT_0 . . . . . .  C ADDR   004EH   A      267# 267
-WAIT_1 . . . . . .  C ADDR   0055H   A      271# 272
+WAIT_0 . . . . . .  C ADDR   0057H   A      278# 278
+WAIT_1 . . . . . .  C ADDR   005EH   A      282# 283
 WCOL . . . . . . .  B ADDR   00F8H.6 A      234#
-WDTCN. . . . . . .  D ADDR   00FFH   A      137# 253 254
-XBR0 . . . . . . .  D ADDR   00E1H   A      107#
+WDTCN. . . . . . .  D ADDR   00FFH   A      137# 263 264
+XBR0 . . . . . . .  D ADDR   00E1H   A      107# 271
 XBR1 . . . . . . .  D ADDR   00E2H   A      108#
-XBR2 . . . . . . .  D ADDR   00E3H   A      109# 260
+XBR2 . . . . . . .  D ADDR   00E3H   A      109# 270
 
 
 REGISTER BANK(S) USED: 0 
 
 
-ASSEMBLY COMPLETE.  1 WARNING(S), 0 ERROR(S)
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

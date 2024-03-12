@@ -1,9 +1,19 @@
 $include (c8051f020.inc)
 org 00h
 jmp begin
+
+org 23h
+serial_isr: jbc ri, read0
+						jbc ti, tcnt0
+						reti
+
 org 2Bh
 T2_isr:	clr TF2
 				jmp timer2
+
+read0: ljmp read
+tcnt0: ljmp tcnt1
+
 				;increment our count here
 
         			dseg at 30h
@@ -23,6 +33,7 @@ mov time, #00h
 mov tcnt, #00h
 clr start
 mov xbr2, #40h
+mov xbr0, #04h
 
 mov oscxcn, #67h
 mov		TMOD, #20h		;Set up timers
@@ -81,14 +92,39 @@ continue:call check_buttons
 
 return:	reti
 
-Stop: 	mov R0, time
-				cpl start
-				;send first number
-				mov A, R0
+Stop: 	clr start
+				reti
+
+reset:	mov time, #00h
+				clr start
+				reti
+
+read: 	mov A, sbuf0
+				cjne a, #72h, notr
+				jmp run
+notr:				cjne a, #73h, nots
+				jmp Stop
+nots:				cjne a, #63h, notc
+				jmp clear
+notc:			cjne a, #74h, return
+				jmp report
+				reti
+
+
+
+run: 	setb start
+			reti
+
+clear: 	mov time, #00h
+				reti
+
+report: mov r0, time
+				mov A, r0
 				anl A,#0F0h
 				swap A
+				add A, #30h
 				mov sbuf0, A
-				inc tcnt
+				mov tcnt, #01h
 				reti
 
 tcnt1: 	mov A, tcnt
@@ -101,36 +137,22 @@ tcnt2:	mov A, tcnt
 				cjne a, #02h, tcnt3
 				mov A, R0 
 				anl a, #0Fh
+				add A, #30h
 				mov sbuf0, A
 				inc tcnt
 				reti
 
-tcnt3: 	mov sbuf0, #0Ah;next line
-				mov tcnt, #00h
+tcnt3: 	cjne a, #03h, tcnt4
+				mov sbuf0, #0Dh;next line
+				inc tcnt
 				reti
 
-reset:	mov time, #00h
-				clr start
+tcnt4: 	cjne a, #04h, tcnt5
+				mov sbuf0, #0Ah;next line
+				inc tcnt
 				reti
-				
 
-
-
-;org 20h
-;serial_isr: jbc ri, read
-;						jbc ti, send
-;						reti
-
-Send: 
-
-
-
-;check_ascii: 	mov A, char
-;							cjne a, #72h, run
-;							cjne a, #73h, stop
-;							cjne a, #63h, clear
-;							cjne a, #74h, report
-;							reti
+tcnt5: reti
 
 Check_buttons: 	mov A, P2
         				cpl A                           ; CPL inputs since they are active low
@@ -145,3 +167,5 @@ Display: 	ORL P3, #0FFh			;Turn off All LEDS
 					cpl A
 					mov P3, A
 					RET
+
+					end

@@ -4,11 +4,11 @@ COPYRIGHT ARM Germany GmbH 1987 - 2017
 "C:\Users\enslo_l5het9y\Documents\Embedded\Embedded\Lab 5\timer.obj"  TO "C:\Users\enslo_l5het9y\Documents\Embedded\Embedded\Lab 5\Lab05" RS(256) PL(68) PW(78)  
 
 ******************************************************************************
-* RESTRICTED VERSION WITH 0800H BYTE CODE SIZE LIMIT; USED: 00C1H BYTE ( 9%) *
+* RESTRICTED VERSION WITH 0800H BYTE CODE SIZE LIMIT; USED: 0101H BYTE (12%) *
 ******************************************************************************
 
 >> 
 >> 
 >> 
-Program Size: data=12.0 xdata=0 code=234
+Program Size: data=12.0 xdata=0 code=291
 LINK/LOCATE RUN COMPLETE.  0 WARNING(S),  0 ERROR(S)
