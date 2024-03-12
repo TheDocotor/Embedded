@@ -1,0 +1,1 @@
+"C:\Users\enslo_l5het9y\Documents\Embedded\Embedded\Lab 5\timer.obj"  TO "C:\Users\enslo_l5het9y\Documents\Embedded\Embedded\Lab 5\Lab05" RS(256) PL(68) PW(78)  
