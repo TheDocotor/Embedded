@@ -1,0 +1,2 @@
+"C:\Users\enslo_l5het9y\Documents\Embedded\Embedded\Lab 7\lab07.obj",
+"C:\Users\enslo_l5het9y\Documents\Embedded\Embedded\Lab 7\thermostat.obj"  TO "C:\Users\enslo_l5het9y\Documents\Embedded\Embedded\Lab 7\lab07" RS(256) PL(68) PW(78) 
