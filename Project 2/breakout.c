@@ -5,14 +5,39 @@
  
 long score_2, score, score_1, high_score = 0;
 sbit player_sw = P1^7;
-char switches = 0; 
+char switches, bonk = 0; 
 bit player, num_player = 0;
 int int_cnt, t_cnt, pad_w, pot_val, count = 0;
 char ball_1, ball_2 = 3;
 char xpos, ypos, xangle, yangle = 0;
 code unsigned char ball[] = {0x0E, 0x1F, 0x1F, 0x1F, 0x0E};
-xdata unsigned char blocks_1[11][5] = {1}; 
-xdata unsigned char blocks_2[11][5] = {1};
+code unsigned char sine[] = { 176, 217, 244, 254, 244, 217, 176, 128, 80, 39, 12, 2, 12, 39, 80, 128 };
+xdata unsigned char blocks_1[11][5] = {
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1}
+    }; 
+xdata unsigned char blocks_2[11][5] = {
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1}
+    };
 unsigned long sum = 0;
 sbit button = P2^6;
 
@@ -32,6 +57,24 @@ void draw_paddle(char x, char padd_w);
 //	ADC0CN = 0x8C;
 //	AMX0SL = 0;
 //}
+unsigned char phase = sizeof(sine)-1;	// current point in sine to output
+
+unsigned int duration = 0;		// number of cycles left to output
+
+void timer4(void) interrupt 16
+{
+	T4CON = T4CON^0x80;
+	DAC0H = sine[phase];
+	if ( phase < sizeof(sine)-1 )	// if mid-cycle
+	{				// complete it
+		phase++;
+	}
+	else if ( duration > 0 )	// if more cycles left to go
+	{				// start a new cycle
+		phase = 0;
+		duration--;
+	}
+}
 
 void pot() interrupt 15{
 	
@@ -169,8 +212,8 @@ void display()
 
 void wait_screen(){
 	TR2 = 0;
-	xpos = 36;//middle of screen
-	ypos = 24;//one pixel below the bricks
+	xpos = 40;//middle of screen
+	ypos = 28;//one pixel below the bricks
 	xangle = 1;
 	yangle = 1;
 	//blank_screen();
@@ -186,7 +229,7 @@ void wait_screen(){
 	disp_char(3, 42, 'A');
 	disp_char(3, 48, 'R');
 	disp_char(3, 54, 'T');
-	refresh_screen();
+	//refresh_screen();
 	//display();
 	if(ball_1 == 3 && ball_2 == 3){ 
 		while (button == 1){
@@ -250,6 +293,7 @@ void game_over()
 
 void turn_end()
 {
+	t_cnt = 50;
 	if(num_player == 1){
 		
 		if(player == 0){
@@ -316,14 +360,14 @@ void draw_bricks(){
 				{
 					for(k = 0; k < 6; k++)
 					{
-						screen[(j-1)*132 + i*8 +k +132] |= 0x70;
+						screen[((j-1)/2)*128 + i*7 +k +131] |= 0x70;
 					}
 				}
 				else
 				{
 					for(k = 0; k < 6; k++)
 					{
-						screen[j*132 + i*8 + k +132] |= 0x07;
+						screen[(j/2)*128 + i*7 + k +131] |= 0x07;
 					}
 				}
 			}
@@ -333,14 +377,14 @@ void draw_bricks(){
 				{
 					for(k = 0; k < 6; k++)
 					{
-						screen[(j-1)*132 + i*8 +k] &= 0x07;
+						screen[(j-1)/2*128 + i*7 + k + 131] &= 0x07;
 					}
 				}
 				else
 				{
 					for(k = 0; k < 6; k++)
 					{
-						screen[j*132 + i*8 + k] &= 0x70;
+						screen[j/2*128 + i*7 + k + 131] &= 0x70;
 					}
 				}
 			}
@@ -361,21 +405,27 @@ void draw_paddle(char x, char padd_w)
 unsigned char draw_ball(int x, int y)
 {	unsigned char row, col, shift, j, hit;
 	int i;
-	if(x<5 || x > 78)
+	if((x<5 || x > 78) && y < 3)
+	{
+		yangle = -1*yangle;
+		xangle = -1*xangle;
+		//return 0;
+	}
+	else if(x<5 || x > 78)
 	{
 		xangle = -1*xangle;
-		return 0;
+		//return 0;
 	}
 
 	else if (y < 3)
 	{
 		yangle = -1*yangle;
-		return 0;
+		//return 0;
 	}
 	else if(y > 61)
 	{
 		turn_end();
-		return 0;
+		//return 0;
 	}
 	col = x-2;
 	row = y - 2;
@@ -396,6 +446,7 @@ unsigned char draw_ball(int x, int y)
 		}
 	}
 	if( y == 60 && hit > 0){
+
 		char col = xpos - pot_val -2;
 		int div = pad_w/4;
 		if( col < div || col > 3*div)
@@ -412,8 +463,77 @@ unsigned char draw_ball(int x, int y)
 		{
 			xangle = -1*xangle;
 		}
+		//score += 1;
+		return -1;
+	}
+	else if( hit > 0)
+	{
+		
+		int x_b, y_b;
 		score += 1;
-		return 0;
+		if(yangle < 0)
+		{
+			y_b = (ypos -11)/4;
+		}
+		else{
+			y_b = (ypos -7)/4;
+		}
+
+		//if(xangle < 0)
+		//{
+			//x_b = (xpos -6)/7;
+		//}
+		//else
+		//{
+			x_b = (xpos -4)/7;
+		//}
+		
+			
+		if(player == 0)
+		{
+			if(blocks_1[x_b][y_b] == 0)
+				{
+					if(xangle < 0)
+						{
+							blocks_1[x_b-1][y_b] = 0;
+						}
+					else
+						{
+							blocks_1[x_b+1][y_b] = 0;
+						}
+					xangle = -1*xangle;
+				}
+			else
+			{
+				blocks_1[x_b][y_b] = 0;
+				yangle = -1*yangle;
+			}
+		}
+		else
+		{
+			if(blocks_2[x_b][y_b] == 0)
+			{
+				y_b = (ypos -9)/4;
+				if(xangle < 0)
+				{
+					blocks_2[x_b-1][y_b] = 0;
+				}
+				else
+				{
+					blocks_2[x_b+1][y_b] = 0;
+				}
+					xangle = -1*xangle;
+			}
+			else
+			{
+				blocks_2[x_b][y_b] = 0;
+				yangle = -1*yangle;
+			}	
+		}
+		if(y_b <= 3)
+		{
+			t_cnt = 40;
+		}
 	}
 	return hit;
 }
@@ -422,7 +542,7 @@ unsigned char draw_ball(int x, int y)
 void mov_ball() {
 	xpos += xangle;
 	ypos += yangle;
-	draw_ball(xpos, ypos);
+	bonk = draw_ball(xpos, ypos);
 	display();
 }
 
@@ -435,6 +555,15 @@ void timer2(void) interrupt 5
 		blank_screen();
 		draw_paddle(pot_val, pad_w);
 		draw_bricks();
+		if(bonk > 0){
+			RCAP4L = -144;				// set up for 800Hz
+	   		duration = 800;				// one second
+		}
+		else if(bonk ==-1)
+		{
+			RCAP4L = -181;				// set up for 800Hz
+	   		duration = 800;
+		}
 		mov_ball();
 		int_cnt = 0;
 	}
@@ -462,7 +591,13 @@ void main()
 	//TH1 = -6;		//9600 baud
 	
 	IE = 0xA0;
-	EIE2 = 0x02;
+	EIE2 = 0x06; //Timer 4 and ADC
+	
+	T4CON = 0x00; //timer 4, auto reload
+	RCAP4H = -1;	//timer 4
+	RCAP4L = -144;	//timer 4
+	//REF0CN = 3;		//set up refrence voltage
+	DAC0CN = 0x9C;	//DAC0CN
 
 	T2CON = 0x00;
 	RCAP2H = -2211 >> 8;
@@ -472,8 +607,10 @@ void main()
 	REF0CN = 0x07;
 	ADC0CF = 0x40;
 	AMX0SL = 0x0;
-
+	CKCON = 0x40;
+	//EXF2 = 1;
 	TR2 = 1;
+	T4CON = T4CON^0x04;
 	
 	init_lcd();
 	t_cnt = 50; //change depending on switches
@@ -486,6 +623,7 @@ void main()
 	ball_1 = 3;
 	ball_2 = 3;
 	draw_ball(xpos, ypos);
+	//draw_bricks();
 	display();
 	wait_screen();
 	
@@ -494,6 +632,7 @@ void main()
 	
 	while(1)
 	{
+		
 	}
 
 

@@ -19,5 +19,5 @@ COPYRIGHT ARM Germany GmbH 1987 - 2017
     CALLER1: ?PR?TIMER2?BREAKOUT
     CALLER2: ?C_C51STARTUP
 
-Program Size: data=90.2 xdata=1189 code=4744
+Program Size: data=94.2 xdata=1189 code=5386
 LINK/LOCATE RUN COMPLETE.  3 WARNING(S),  0 ERROR(S)
