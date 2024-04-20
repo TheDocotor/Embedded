@@ -1,4 +1,4 @@
-C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/18/2024 19:18:37 PAGE 1   
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 1   
 
 
 C51 COMPILER V9.59.0.0, COMPILATION OF MODULE BREAKOUT
@@ -11,12 +11,12 @@ line level    source
    2          #include <lcd.h>
    3          #include<stdio.h>
    4          #include<stdlib.h>
-   5           
+   5          
    6          long score_2, score, score_1, high_score = 0;
    7          sbit player_sw = P1^7;
    8          char switches, bonk = 0; 
-   9          bit player, num_player = 0;
-  10          int int_cnt, t_cnt, t_cnt_init, pad_w, pot_val, count = 0;
+   9          bit player, num_player, su = 0;
+  10          int int_cnt, t_cnt, t_cnt_init, pad_w, pad_w2, pot_val, count = 0;
   11          char ball_1, ball_2 = 3;
   12          char xpos, ypos, xangle, yangle = 0;
   13          code unsigned char ball[] = {0x0E, 0x1F, 0x1F, 0x1F, 0x0E};
@@ -49,655 +49,745 @@ line level    source
   40              };
   41          unsigned long sum = 0;
   42          sbit button = P2^6;
-  43          
-  44          void disp_char(unsigned char row, unsigned char col, char single_char);
-  45          void disp_score(int x, int y, unsigned long score);
-  46          void display();
-  47          void mov_ball();
-  48          unsigned char draw_ball(int x, int y);
-  49          void wait_screen();
-  50          void game_over();
-  51          void turn_end();
-  52          void draw_paddle(char x, char padd_w);
-  53          
-  54          //void adc_init(){
-  55          //      REF0CN = 0x7;
-C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/18/2024 19:18:37 PAGE 2   
+  43          ////////////////////////////////////////////////////////////////////////////////////
+  44          //                                              Timer 4 Interupt: Used for Game audio
+  45          //      Occurs when timer four flag is raised.
+  46          //      This plays the sound bite for the desired duration.
+  47          //      Audio is set up for certain frequencies and then played through this interupt.
+  48          //
+  49          ////////////////////////////////////////////////////////////////////////////////////
+  50          
+  51          unsigned char phase = sizeof(sine)-1;   // current point in sine to outputcode 
+  52          
+  53          unsigned int duration = 0;              // number of cycles left to output
+  54          
+  55          void timer4(void) interrupt 16
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 2   
 
-  56          //      ADC0CF = 0x40;
-  57          //      ADC0CN = 0x8C;
-  58          //      AMX0SL = 0;
-  59          //}
-  60          unsigned char phase = sizeof(sine)-1;   // current point in sine to output
-  61          
-  62          unsigned int duration = 0;              // number of cycles left to output
-  63          
-  64          void timer4(void) interrupt 16
-  65          {
-  66   1              T4CON = T4CON^0x80;
-  67   1              DAC0H = sine[phase];
-  68   1              if ( phase < sizeof(sine)-1 )   // if mid-cycle
-  69   1              {                               // complete it
-  70   2                      phase++;
-  71   2              }
-  72   1              else if ( duration > 0 )        // if more cycles left to go
-  73   1              {                               // start a new cycle
-  74   2                      phase = 0;
-  75   2                      duration--;
-  76   2              }
-  77   1              if (duration == 0){
-  78   2                      T4CON = 0x00;
-  79   2                      }
-  80   1      }
-  81          
-  82          void pot() interrupt 15{
-  83   1              
-  84   1              unsigned long samp = 0;
-  85   1              unsigned int D;
-  86   1              AD0INT = 0;
-  87   1      
-  88   1              D = (ADC0L|(ADC0H << 8));
-  89   1      
-  90   1              samp = (89L - pad_w)*D/4096;
-  91   1              sum += samp;
-  92   1              count++;
-  93   1              
-  94   1              if(count % 7 == 0)
-  95   1              {
-  96   2                      pot_val = sum >> 3;
-  97   2                      sum = 0;
-  98   2              }
-  99   1      
- 100   1      }
- 101          
- 102          void disp_char(unsigned char row, unsigned char col, char single_char)
- 103          {
- 104   1              int i, j;
- 105   1              unsigned char k;
- 106   1              i = 128*row+col;
- 107   1              j = (single_char - 0x20)*5;
- 108   1              for(k = 0; k < 5; k ++) {
- 109   2                      screen[i+k] = font5x8[j + k];
- 110   2                      }
- 111   1      }
- 112          
- 113          void disp_score(int x, int y, unsigned long score){
- 114   1              int thou = 0;
- 115   1              int hund = 0;
- 116   1              int tens = 0;
- 117   1              int ones = 0;
-C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/18/2024 19:18:37 PAGE 3   
+  56          {
+  57   1              T4CON = T4CON^0x80;
+  58   1              DAC0H = sine[phase];
+  59   1              if ( phase < sizeof(sine)-1 )   // if mid-cycle
+  60   1              {                               
+  61   2                      phase++;                                        // complete it
+  62   2              }
+  63   1              else if ( duration > 0 )        // if more cycles left to go
+  64   1              {                               
+  65   2                      phase = 0;                              // start a new cycle
+  66   2                      duration--;
+  67   2              }
+  68   1              if (duration == 0){                     //Turn off timer when the sound is done
+  69   2                      T4CON = 0x00;
+  70   2                      }
+  71   1      }
+  72          
+  73          ////////////////////////////////////////////////////////////////////////////////////
+  74          //                                      Potentiometer Reading: Used for moving the paddle
+  75          //      Occurs when ADC flag is raised and it samples the potentiometer.
+  76          //      Takes several samples from the potentiometer and averages them.
+  77          //
+  78          ////////////////////////////////////////////////////////////////////////////////////
+  79          void pot() interrupt 15{
+  80   1              
+  81   1              unsigned long samp = 0;
+  82   1              unsigned int D;
+  83   1              AD0INT = 0;
+  84   1      
+  85   1              D = (ADC0L|(ADC0H << 8)); //Takes in the Data from the potentiometer
+  86   1              if(player == 0){
+  87   2              samp = (89L - pad_w)*D/4096;    //This normalizes the sample to fit within the play area for player 1
+  88   2              }
+  89   1              else{
+  90   2              samp = (89L - pad_w2)*D/4096;   //This normalizes the sample to fit within the play area for player 2
+  91   2              }
+  92   1              sum += samp;                                    //Takes the sum of 8 samples
+  93   1              count++;
+  94   1              
+  95   1              if(count % 7 == 0)                              //after 8 samples take the average and update the potentiometers
+  96   1              {
+  97   2                      pot_val = sum >> 3;                     //bit shift for division
+  98   2                      sum = 0;
+  99   2              }
+ 100   1      
+ 101   1      }
+ 102          
+ 103          ////////////////////////////////////////////////////////////////////////////////////
+ 104          //                                              Displays Characters to Screen
+ 105          //      Input: 
+ 106          //              -Row: 0-7 On the screen
+ 107          //              -Col: 0-127 Desired column to start the character
+ 108          //              -single_char: One Keyboard character to be printed to the screen.
+ 109          //      Output:
+ 110          //              -Displays single character on the LCD display
+ 111          ////////////////////////////////////////////////////////////////////////////////////
+ 112          void disp_char(unsigned char row, unsigned char col, char single_char)
+ 113          {
+ 114   1              int i, j;
+ 115   1              unsigned char k;
+ 116   1              i = 128*row+col;                                //takes the row and column and translates it to the exact position on LCD
+ 117   1              j = (single_char - 0x20)*5;             //translates the single char to be comptible with the font function.
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 3   
 
- 118   1              thou = score/1000;
- 119   1              score = score%1000;
- 120   1              hund = score/100;
- 121   1              score = score%100;
- 122   1              tens =score/10;
- 123   1              ones = score%10;
- 124   1              disp_char(x, y, thou + '0');
- 125   1              disp_char(x, y+6, hund + '0');
- 126   1              disp_char(x, y+12, tens + '0');
- 127   1              disp_char(x, y+18, ones + '0');
- 128   1      }
- 129          
- 130          void display()
- 131          {
- 132   1              int i;
- 133   1      
- 134   1              if(score > high_score)
- 135   1              {
- 136   2                      high_score = score;
- 137   2              }
- 138   1      
- 139   1              
- 140   1              for(i = 0; i < 82; i++)
- 141   1              {
- 142   2                      screen[i] |= 3;
- 143   2              }
- 144   1              for(i = 0; i < 8; i++)
- 145   1              {
- 146   2                      screen[i*128] |= 255;
- 147   2                      screen[i*128 + 1] |= 255;
- 148   2                      screen[i*128 + 81] |= 255;
- 149   2                      screen[i*128 + 80] |= 255;
- 150   2              }
- 151   1              disp_char(0, 89, 'H');
- 152   1              disp_char(0, 95, 'I');
- 153   1              disp_char(0, 101, 'G');
- 154   1              disp_char(0, 107, 'H');
- 155   1              disp_char(0, 113, ':');
- 156   1      
- 157   1              disp_score(1, 93, high_score);
- 158   1      
- 159   1              disp_char(2, 87, 'S');
- 160   1              disp_char(2, 93, 'C');
- 161   1              disp_char(2, 99, 'O');
- 162   1              disp_char(2, 105, 'R');
- 163   1              disp_char(2, 111, 'E');
- 164   1              disp_char(2, 117, ':');
+ 118   1              for(k = 0; k < 5; k ++) {
+ 119   2                      screen[i+k] = font5x8[j + k]; //calls font and prints the char
+ 120   2                      }
+ 121   1      }
+ 122          
+ 123          ////////////////////////////////////////////////////////////////////////////////////
+ 124          //                                              Displays Score to Screen
+ 125          //      Input: 
+ 126          //              -X: 0-7 row on the screen
+ 127          //              -Y: 0-127 Desired column to start the character
+ 128          //              -Score: Four digit score to be printed on the screen
+ 129          //      Output:
+ 130          //              -Displays entire score on the LCD display
+ 131          ////////////////////////////////////////////////////////////////////////////////////
+ 132          void disp_score(int x, int y, unsigned long score){
+ 133   1              int thou = 0;
+ 134   1              int hund = 0;
+ 135   1              int tens = 0;
+ 136   1              int ones = 0;
+ 137   1              thou = score/1000;      //takes the thousands place
+ 138   1              score = score%1000;     //remove the thousands place
+ 139   1              hund = score/100;       //takes the hundreds place
+ 140   1              score = score%100;      //remove the hundreds place
+ 141   1              tens =score/10;         //takes the tens place
+ 142   1              ones = score%10;        //takes the ones place
+ 143   1              disp_char(x, y, thou + '0');    //display thousands
+ 144   1              disp_char(x, y+6, hund + '0');  //display hundreds
+ 145   1              disp_char(x, y+12, tens + '0'); //display tens
+ 146   1              disp_char(x, y+18, ones + '0'); //display ones
+ 147   1      }
+ 148          
+ 149          ////////////////////////////////////////////////////////////////////////////////////
+ 150          //                                              Display configuration
+ 151          //      This function sets up the display area for the game. 
+ 152          //      Prints the boarders for the play area 79x62 with two bit boarder on the outside
+ 153          //      Displays high score, current player score, player 1's balls left,
+ 154          //      and player two's balls left.
+ 155          ////////////////////////////////////////////////////////////////////////////////////
+ 156          void display()
+ 157          {
+ 158   1              int i;
+ 159   1      
+ 160   1              if(score > high_score)  //updates high score if current score is greater
+ 161   1              {
+ 162   2                      high_score = score;     
+ 163   2              }
+ 164   1      
  165   1              
- 166   1              //update for two players
- 167   1              disp_score(3, 93, score);
- 168   1      
- 169   1              disp_char(4, 99, 'P');
- 170   1              disp_char(4, 105, '1');
- 171   1              if(ball_1 == 3){
- 172   2                      disp_char(5, 87, '*');
- 173   2                      disp_char(5, 102, '*');
- 174   2                      disp_char(5, 117, '*');
- 175   2                      }
- 176   1              else if (ball_1 == 2){
- 177   2                      disp_char(5, 87, '*');
- 178   2                      disp_char(5, 102, '*');
- 179   2                      }
-C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/18/2024 19:18:37 PAGE 4   
+ 166   1              for(i = 0; i < 82; i++)
+ 167   1              {
+ 168   2                      screen[i] |= 3;         //Prints the top boarder
+ 169   2              }
+ 170   1              for(i = 0; i < 8; i++)  //print the side walls
+ 171   1              {
+ 172   2                      screen[i*128] |= 255;           //255 is a full column on a page
+ 173   2                      screen[i*128 + 1] |= 255;       //left two boarders
+ 174   2                      screen[i*128 + 81] |= 255;      //right two boarders
+ 175   2                      screen[i*128 + 80] |= 255;
+ 176   2              }
+ 177   1      
+ 178   1              //All scores and player's balls are printed on the right side of the screen.
+ 179   1      
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 4   
 
- 180   1              else if(ball_1 == 1) {
- 181   2                      disp_char(5, 87, '*');
- 182   2                      }
- 183   1              if(num_player == 1)
- 184   1              {
- 185   2                      disp_char(6, 99, 'P');
- 186   2                      disp_char(6, 105, '2');
- 187   2              }
- 188   1              if(ball_2 == 3){
- 189   2                      disp_char(7, 87, '*');
- 190   2                      disp_char(7, 102, '*');
- 191   2                      disp_char(7, 117, '*');
- 192   2                      }
- 193   1              else if (ball_2 == 2){
- 194   2                      disp_char(7, 87, '*');
- 195   2                      disp_char(7, 102, '*');
- 196   2                      }
- 197   1              else if(ball_2 == 1) {
- 198   2                      disp_char(7, 87, '*');
- 199   2                      }
- 200   1      
- 201   1              //potentially update player scores here
- 202   1              if(player == 0)
- 203   1              {
- 204   2                      disp_char(4, 93, '-');
- 205   2                      disp_char(4, 111, '-');
- 206   2              }
- 207   1              else
- 208   1              {
- 209   2                      disp_char(6, 93, '-');
- 210   2                      disp_char(6, 111, '-');
- 211   2              }
- 212   1      
- 213   1              refresh_screen();
- 214   1      }
- 215          
- 216          void wait_screen(){
- 217   1              TR2 = 0;
- 218   1              xpos = 40;//middle of screen
- 219   1              ypos = 40;//one pixel below the bricks
- 220   1              xangle = 1;
- 221   1              yangle = 1;
- 222   1              blank_screen();
- 223   1              
- 224   1              
- 225   1              disp_char(2, 30, 'P');
- 226   1              disp_char(2, 36, 'R');
- 227   1              disp_char(2, 42, 'E');
- 228   1              disp_char(2, 48, 'S');
- 229   1              disp_char(2, 54, 'S');
- 230   1              disp_char(3, 30, 'S');
- 231   1              disp_char(3, 36, 'T');
- 232   1              disp_char(3, 42, 'A');
- 233   1              disp_char(3, 48, 'R');
- 234   1              disp_char(3, 54, 'T');
- 235   1              //refresh_screen();
- 236   1              display();
- 237   1              if(ball_1 == 3 && ball_2 == 3){ 
- 238   2                      while (button == 1){
- 239   3                      pad_w = P1&3;
- 240   3                      t_cnt_init = P1&24;
- 241   3                      t_cnt_init = t_cnt_init >>3;
-C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/18/2024 19:18:37 PAGE 5   
+ 180   1              //Display High Score
+ 181   1              disp_char(0, 89, 'H');
+ 182   1              disp_char(0, 95, 'I');
+ 183   1              disp_char(0, 101, 'G');
+ 184   1              disp_char(0, 107, 'H');
+ 185   1              disp_char(0, 113, ':');
+ 186   1      
+ 187   1              disp_score(1, 93, high_score);
+ 188   1      
+ 189   1              //display current player's score
+ 190   1              disp_char(2, 87, 'S');
+ 191   1              disp_char(2, 93, 'C');
+ 192   1              disp_char(2, 99, 'O');
+ 193   1              disp_char(2, 105, 'R');
+ 194   1              disp_char(2, 111, 'E');
+ 195   1              disp_char(2, 117, ':');
+ 196   1              
+ 197   1              disp_score(3, 93, score);
+ 198   1              
+ 199   1              //Display player ones balls left
+ 200   1              disp_char(4, 99, 'P');
+ 201   1              disp_char(4, 105, '1');
+ 202   1              if(ball_1 == 3){
+ 203   2                      disp_char(5, 87, '*');
+ 204   2                      disp_char(5, 102, '*');
+ 205   2                      disp_char(5, 117, '*');
+ 206   2                      }
+ 207   1              else if (ball_1 == 2){
+ 208   2                      disp_char(5, 87, '*');
+ 209   2                      disp_char(5, 102, '*');
+ 210   2                      }
+ 211   1              else if(ball_1 == 1) {
+ 212   2                      disp_char(5, 87, '*');
+ 213   2                      }
+ 214   1      
+ 215   1              //If more than one player display player two's info
+ 216   1              if(num_player == 1)
+ 217   1              {
+ 218   2                      disp_char(6, 99, 'P');
+ 219   2                      disp_char(6, 105, '2');
+ 220   2              }
+ 221   1              if(ball_2 == 3){
+ 222   2                      disp_char(7, 87, '*');
+ 223   2                      disp_char(7, 102, '*');
+ 224   2                      disp_char(7, 117, '*');
+ 225   2                      }
+ 226   1              else if (ball_2 == 2){
+ 227   2                      disp_char(7, 87, '*');
+ 228   2                      disp_char(7, 102, '*');
+ 229   2                      }
+ 230   1              else if(ball_2 == 1) {
+ 231   2                      disp_char(7, 87, '*');
+ 232   2                      }
+ 233   1      
+ 234   1              //Displays "-P*-" according to who's turn it is
+ 235   1              if(player == 0)
+ 236   1              {
+ 237   2                      disp_char(4, 93, '-');
+ 238   2                      disp_char(4, 111, '-');
+ 239   2              }
+ 240   1              else
+ 241   1              {
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 5   
 
- 242   3                      num_player = player_sw;
- 243   3                      
- 244   3                              }
- 245   2                      if(pad_w == 3){
- 246   3                              pad_w = 24;
- 247   3                      }
- 248   2                      else{
- 249   3                              pad_w = pad_w*4 +8;
- 250   3                      }
- 251   2                      t_cnt_init = t_cnt_init*10 + 30; 
- 252   2                      t_cnt = t_cnt_init;
- 253   2                      if(num_player == 0){
- 254   3                      ball_2 = 0;
- 255   3                      }
- 256   2              }
- 257   1              else{
- 258   2                      while (button == 1){};
- 259   2              }
- 260   1              TR2 = 1;        
- 261   1      }
- 262          
- 263          
- 264          void game_over()
- 265          {
- 266   1              TR2 = 0;
- 267   1      
- 268   1              blank_screen();
- 269   1              disp_char(2, 30, 'G');
- 270   1              disp_char(2, 36, 'A');
- 271   1              disp_char(2, 42, 'M');
- 272   1              disp_char(2, 48, 'E');
- 273   1              disp_char(3, 30, 'O');
- 274   1              disp_char(3, 36, 'V');
- 275   1              disp_char(3, 42, 'E');
- 276   1              disp_char(3, 48, 'R');
- 277   1      
- 278   1              display();
- 279   1              while(1){}
- 280   1              
- 281   1      }
- 282          
- 283          void turn_end()
- 284          {
- 285   1              t_cnt = t_cnt_init;
- 286   1              if(num_player == 1){
- 287   2                      
- 288   2                      if(player == 0){
- 289   3                              ball_1 = ball_1 -1;
- 290   3                              player = 1;
- 291   3                              score_1 = score;
- 292   3                              score = score_2;
- 293   3                      }
- 294   2                      else{
- 295   3                              if(ball_2 == 1){
- 296   4                                      ball_2 -= 1;
- 297   4                                      game_over();}
- 298   3                              else{
- 299   4                                      ball_2 = ball_2 -1;
- 300   4                                      player = 0;
- 301   4                                      score_2 = score;
- 302   4                                      score = score_1;
- 303   4                              }
-C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/18/2024 19:18:37 PAGE 6   
+ 242   2                      disp_char(6, 93, '-');
+ 243   2                      disp_char(6, 111, '-');
+ 244   2              }
+ 245   1      
+ 246   1              //displays the screen
+ 247   1              refresh_screen();
+ 248   1      }
+ 249          
+ 250          void wait_screen(){
+ 251   1              
+ 252   1              TR2 = 0;
+ 253   1              xpos = 40;//middle of screen
+ 254   1              ypos = 40;//one pixel below the bricks
+ 255   1              xangle = 1;
+ 256   1              yangle = 1;
+ 257   1              blank_screen();
+ 258   1              
+ 259   1              
+ 260   1              disp_char(2, 24, 'P');
+ 261   1              disp_char(2, 30, 'L');
+ 262   1              disp_char(2, 36, 'A');
+ 263   1              disp_char(2, 42, 'Y');
+ 264   1              disp_char(2, 48, 'E');
+ 265   1              disp_char(2, 54, 'R');
+ 266   1      
+ 267   1              if(player == 0){
+ 268   2                      disp_char(3, 36, 'O');
+ 269   2                      disp_char(3, 42, 'N');
+ 270   2                      disp_char(3, 48, 'E');
+ 271   2              }
+ 272   1              else{
+ 273   2                      disp_char(3, 36, 'T');
+ 274   2                      disp_char(3, 42, 'W');
+ 275   2                      disp_char(3, 48, 'O');
+ 276   2              }
+ 277   1              disp_char(4, 30, 'R');
+ 278   1              disp_char(4, 36, 'E');
+ 279   1              disp_char(4, 42, 'A');
+ 280   1              disp_char(4, 48, 'D');
+ 281   1              disp_char(4, 54, 'Y');
+ 282   1      
+ 283   1              display();
+ 284   1              if(ball_1 == 3 && ball_2 == 3){ 
+ 285   2                      while (button == 1){
+ 286   3                      pad_w = P1&3;
+ 287   3                      pad_w2 = P1&96;
+ 288   3                      pad_w2 = pad_w2 >>5;
+ 289   3                      t_cnt_init = P1&24;
+ 290   3                      t_cnt_init = t_cnt_init >>3;
+ 291   3                      num_player = player_sw;
+ 292   3                      
+ 293   3                              }
+ 294   2                      if(pad_w == 3){
+ 295   3                              pad_w = 24;
+ 296   3                      }
+ 297   2                      else{
+ 298   3                              pad_w = pad_w2*4 +8;
+ 299   3                      }
+ 300   2                      if(pad_w2 == 3){
+ 301   3                              pad_w2 = 24;
+ 302   3                      }
+ 303   2                      else{
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 6   
 
- 304   3                      }
- 305   2              }
- 306   1      
- 307   1              else{
- 308   2                      if(ball_1 == 1){
- 309   3                              game_over();}
- 310   2                      else{
- 311   3                              ball_1 = ball_1 -1;
- 312   3                              }
- 313   2              }
- 314   1              wait_screen();
- 315   1      }
- 316          
- 317          void draw_bricks(){
- 318   1              int i;
- 319   1              int j;
- 320   1              int k;
- 321   1              int zero_cnt = 0;
- 322   1              xdata unsigned char blocks[11][5] = {0};
- 323   1              if(player == 0)
- 324   1              {
- 325   2                      for(i= 0; i < 11; i ++)
- 326   2                      {
- 327   3                              for(j = 0; j < 5; j ++)
- 328   3                              {
- 329   4                                      blocks[i][j] = blocks_1[i][j];
- 330   4                              }
- 331   3                      }               
- 332   2              }
- 333   1              else
- 334   1              {
- 335   2                      for(i= 0; i < 11; i ++)
- 336   2                      {
- 337   3                              for(j = 0; j < 5; j ++)
- 338   3                              {
- 339   4                                      blocks[i][j] = blocks_2[i][j];
- 340   4                              }
- 341   3                      }       
- 342   2              }
- 343   1      
- 344   1              for(i= 0; i < 11; i ++)
- 345   1              {
- 346   2                      for(j = 0; j < 5; j ++)
- 347   2                      {
- 348   3                              if(blocks[i][j] == 1)
- 349   3                              {
- 350   4                                      if(j%2 == 1)
- 351   4                                      {
- 352   5                                              for(k = 0; k < 6; k++)
- 353   5                                              {
- 354   6                                                      screen[((j-1)/2)*128 + i*7 +k +131] |= 0x70;
- 355   6                                              }
- 356   5                                      }
- 357   4                                      else
- 358   4                                      {
- 359   5                                              for(k = 0; k < 6; k++)
- 360   5                                              {
- 361   6                                                      screen[(j/2)*128 + i*7 + k +131] |= 0x07;
- 362   6                                              }
- 363   5                                      }
- 364   4                              }
- 365   3                              else
-C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/18/2024 19:18:37 PAGE 7   
+ 304   3                              pad_w2 = pad_w2*4 +8;
+ 305   3                      }
+ 306   2                      t_cnt_init = t_cnt_init*10 + 30; 
+ 307   2                      t_cnt = t_cnt_init;
+ 308   2                      if(num_player == 0){
+ 309   3                      ball_2 = 0;
+ 310   3                      }
+ 311   2              }
+ 312   1              else{
+ 313   2                      while (button == 1){};
+ 314   2              }
+ 315   1              TR2 = 1;        
+ 316   1      }
+ 317          
+ 318          
+ 319          void game_over()
+ 320          {
+ 321   1              TR2 = 0;
+ 322   1      
+ 323   1              blank_screen();
+ 324   1              disp_char(2, 30, 'G');
+ 325   1              disp_char(2, 36, 'A');
+ 326   1              disp_char(2, 42, 'M');
+ 327   1              disp_char(2, 48, 'E');
+ 328   1              disp_char(3, 30, 'O');
+ 329   1              disp_char(3, 36, 'V');
+ 330   1              disp_char(3, 42, 'E');
+ 331   1              disp_char(3, 48, 'R');
+ 332   1      
+ 333   1              display();
+ 334   1              while(1){}
+ 335   1              
+ 336   1      }
+ 337          
+ 338          void turn_end()
+ 339          {
+ 340   1              RCAP4H = -1763>>8;                      // set up for 784Hz
+ 341   1              RCAP4L = -1763;                         // set up for 784 Hz
+ 342   1              duration = 196;                         // quarter second
+ 343   1              T4CON = T4CON^0x04;                     //enable timer 4
+ 344   1              su = 0;
+ 345   1              t_cnt = t_cnt_init;
+ 346   1              if(num_player == 1){
+ 347   2                      
+ 348   2                      if(player == 0){
+ 349   3                              ball_1 = ball_1 -1;
+ 350   3                              player = 1;
+ 351   3                              score_1 = score;
+ 352   3                              score = score_2;
+ 353   3                      }
+ 354   2                      else{
+ 355   3                              if(ball_2 == 1){
+ 356   4                                      ball_2 -= 1;
+ 357   4                                      game_over();}
+ 358   3                              else{
+ 359   4                                      ball_2 = ball_2 -1;
+ 360   4                                      player = 0;
+ 361   4                                      score_2 = score;
+ 362   4                                      score = score_1;
+ 363   4                              }
+ 364   3                      }
+ 365   2              }
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 7   
 
- 366   3                              {
- 367   4                                      zero_cnt ++;
- 368   4                                      if(j%2 == 1)
- 369   4                                      {
- 370   5                                              for(k = 0; k < 6; k++)
- 371   5                                              {
- 372   6                                                      screen[(j-1)/2*128 + i*7 + k + 131] &= 0x07;
- 373   6                                                      
- 374   6                                              }
- 375   5                                      }
- 376   4                                      else
- 377   4                                      {
- 378   5                                              for(k = 0; k < 6; k++)
- 379   5                                              {
- 380   6                                                      screen[j/2*128 + i*7 + k + 131] &= 0x70;
- 381   6                                              }
- 382   5                                      }
- 383   4                              }
- 384   3                      }
- 385   2              }
- 386   1              if(zero_cnt == 55 && ypos > 40){
- 387   2                      if(player == 0)
- 388   2                      {
- 389   3                              for(i= 0; i < 11; i ++)
- 390   3                              {
- 391   4                                      for(j = 0; j < 5; j ++)
- 392   4                                      {
- 393   5                                      blocks_1[i][j] = 1;
- 394   5                                      }
- 395   4                              }               
- 396   3                      }
- 397   2                      else
- 398   2                      {
- 399   3                              for(i= 0; i < 11; i ++)
- 400   3                              {
- 401   4                                      for(j = 0; j < 5; j ++)
- 402   4                                      {
- 403   5                                      blocks_2[i][j] = 1;
- 404   5                                      }
- 405   4                              }       
- 406   3                      }
- 407   2              } 
- 408   1      }
- 409          
- 410          void draw_paddle(char x, char padd_w)
- 411          {
- 412   1              int i;
- 413   1              pad_w = (int)pad_w;
- 414   1              for(i = 0; i < padd_w; i ++)
- 415   1              {
- 416   2                      screen[898+x+i] |= 0xc0;
- 417   2              }
- 418   1      }
- 419          
- 420          unsigned char draw_ball(int x, int y)
- 421          {       unsigned char row, col, shift, j, hit;
- 422   1              int i;
- 423   1              
- 424   1              col = x-2;
- 425   1              row = y - 2;
- 426   1              shift = row%8;
- 427   1              row = row/8;
-C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/18/2024 19:18:37 PAGE 8   
+ 366   1      
+ 367   1              else{
+ 368   2                      if(ball_1 == 1){
+ 369   3                              game_over();}
+ 370   2                      else{
+ 371   3                              ball_1 = ball_1 -1;
+ 372   3                              }
+ 373   2              }
+ 374   1              wait_screen();
+ 375   1      }
+ 376          
+ 377          void draw_bricks(){
+ 378   1              int i;
+ 379   1              int j;
+ 380   1              int k;
+ 381   1              int zero_cnt = 0;
+ 382   1              xdata unsigned char blocks[11][5] = {0};
+ 383   1              if(player == 0)
+ 384   1              {
+ 385   2                      for(i= 0; i < 11; i ++)
+ 386   2                      {
+ 387   3                              for(j = 0; j < 5; j ++)
+ 388   3                              {
+ 389   4                                      blocks[i][j] = blocks_1[i][j];
+ 390   4                              }
+ 391   3                      }               
+ 392   2              }
+ 393   1              else
+ 394   1              {
+ 395   2                      for(i= 0; i < 11; i ++)
+ 396   2                      {
+ 397   3                              for(j = 0; j < 5; j ++)
+ 398   3                              {
+ 399   4                                      blocks[i][j] = blocks_2[i][j];
+ 400   4                              }
+ 401   3                      }       
+ 402   2              }
+ 403   1      
+ 404   1              for(i= 0; i < 11; i ++)
+ 405   1              {
+ 406   2                      for(j = 0; j < 5; j ++)
+ 407   2                      {
+ 408   3                              if(blocks[i][j] == 1)
+ 409   3                              {
+ 410   4                                      if(j%2 == 1)
+ 411   4                                      {
+ 412   5                                              for(k = 0; k < 6; k++)
+ 413   5                                              {
+ 414   6                                                      screen[((j-1)/2)*128 + i*7 +k +131] |= 0x70;
+ 415   6                                              }
+ 416   5                                      }
+ 417   4                                      else
+ 418   4                                      {
+ 419   5                                              for(k = 0; k < 6; k++)
+ 420   5                                              {
+ 421   6                                                      screen[(j/2)*128 + i*7 + k +131] |= 0x07;
+ 422   6                                              }
+ 423   5                                      }
+ 424   4                              }
+ 425   3                              else
+ 426   3                              {
+ 427   4                                      zero_cnt ++;
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 8   
 
- 428   1              //row >> 3;
- 429   1              hit = 0;
- 430   1              for(j = 0, i = row*128+col; j < 5; i++, j++)
- 431   1              {
- 432   2                      int mask = (int)ball[j] << shift;
- 433   2                      hit |= screen[i]&(unsigned char)mask;
- 434   2                      screen[i] |= mask;
- 435   2      
- 436   2                      if(mask & 0xFF00)
- 437   2                      {
- 438   3                              hit |= screen[i+128]&(unsigned char)(mask >> 8);
- 439   3                              screen[i + 128] |= (unsigned char)(mask >> 8);
- 440   3                      }
- 441   2              }
- 442   1              if((x<5 || x > 78) && y < 3)
- 443   1              {
- 444   2                      yangle = -1*yangle;
- 445   2                      xangle = -1*xangle;
- 446   2                      return -2;
- 447   2              }
- 448   1              else if(x<5 || x > 78)
- 449   1              {
- 450   2                      xangle = -1*xangle;
- 451   2                      return -2;
- 452   2              }
- 453   1      
- 454   1              else if (y < 3)
- 455   1              {
- 456   2                      yangle = -1*yangle;
- 457   2                      return -2;
- 458   2              }
- 459   1              else if(y > 61)
- 460   1              {
- 461   2                      turn_end();
- 462   2                      return -2;
- 463   2              }
- 464   1              if( y == 60 && hit > 0){
- 465   2      
- 466   2                      char col = xpos - pot_val -2;
- 467   2                      int div = pad_w/4;
- 468   2                      if( col < div || col > 3*div)
- 469   2                      {
- 470   3                              xangle = 2;
- 471   3                              yangle = -1;
- 472   3                      }
- 473   2                      else
- 474   2                      {
- 475   3                              xangle = 1;
- 476   3                              yangle = -2;
- 477   3                      }
- 478   2                      if(col < div *2)
- 479   2                      {
- 480   3                              xangle = -1*xangle;
- 481   3                      }
- 482   2                      //score += 1;
- 483   2                      return -1;
- 484   2              }
- 485   1              else if( hit > 0)
- 486   1              {
- 487   2                      
- 488   2                      int x_b, y_b;
- 489   2                      score += 1;
-C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/18/2024 19:18:37 PAGE 9   
+ 428   4                                      if(j%2 == 1)
+ 429   4                                      {
+ 430   5                                              for(k = 0; k < 6; k++)
+ 431   5                                              {
+ 432   6                                                      screen[(j-1)/2*128 + i*7 + k + 131] &= 0x07;
+ 433   6                                                      
+ 434   6                                              }
+ 435   5                                      }
+ 436   4                                      else
+ 437   4                                      {
+ 438   5                                              for(k = 0; k < 6; k++)
+ 439   5                                              {
+ 440   6                                                      screen[j/2*128 + i*7 + k + 131] &= 0x70;
+ 441   6                                              }
+ 442   5                                      }
+ 443   4                              }
+ 444   3                      }
+ 445   2              }
+ 446   1              if(zero_cnt == 55 && ypos > 40){
+ 447   2                      if(player == 0)
+ 448   2                      {
+ 449   3                              for(i= 0; i < 11; i ++)
+ 450   3                              {
+ 451   4                                      for(j = 0; j < 5; j ++)
+ 452   4                                      {
+ 453   5                                      blocks_1[i][j] = 1;
+ 454   5                                      }
+ 455   4                              }               
+ 456   3                      }
+ 457   2                      else
+ 458   2                      {
+ 459   3                              for(i= 0; i < 11; i ++)
+ 460   3                              {
+ 461   4                                      for(j = 0; j < 5; j ++)
+ 462   4                                      {
+ 463   5                                      blocks_2[i][j] = 1;
+ 464   5                                      }
+ 465   4                              }       
+ 466   3                      }
+ 467   2              } 
+ 468   1      }
+ 469          
+ 470          void draw_paddle(char x)
+ 471          {
+ 472   1              int i;
+ 473   1              int padd_w;
+ 474   1              if(player == 0){
+ 475   2                      padd_w = (int)pad_w;
+ 476   2                      
+ 477   2              }
+ 478   1              else{
+ 479   2                      padd_w = (int)pad_w2;
+ 480   2              }
+ 481   1              for(i = 0; i < padd_w; i ++)
+ 482   1                      {
+ 483   2                              screen[898+x+i] |= 0xc0;
+ 484   2                      }
+ 485   1      }
+ 486          
+ 487          unsigned char draw_ball(int x, int y)
+ 488          {       unsigned char row, col, shift, j, hit;
+ 489   1              int i;
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 9   
 
- 490   2                      if(yangle < 0)
- 491   2                      {
- 492   3                              y_b = (ypos -10)/4;
- 493   3                      }
- 494   2                      else{
- 495   3                              y_b = (ypos -6)/4;
- 496   3                      }
- 497   2                      if(xangle < 0)
- 498   2                      {
- 499   3                              x_b = (xpos -5)/7;
- 500   3                      }
- 501   2                      else
- 502   2                      {
- 503   3                              x_b = (xpos -1)/7;
- 504   3                      }
- 505   2                              
- 506   2                      if(player == 0)
- 507   2                      {
- 508   3                              if(blocks_1[x_b][y_b] == 0)
- 509   3                                      {
- 510   4                                              if(xangle < 0)
- 511   4                                                      {
- 512   5                                                              y_b = (ypos -8)/4;
- 513   5                                                              blocks_1[x_b-1][y_b] = 0;
- 514   5                                                      }
- 515   4                                              else
- 516   4                                                      {
- 517   5                                                              y_b = (ypos -8)/4;
- 518   5                                                              blocks_1[x_b+1][y_b] = 0;
- 519   5                                                      }
- 520   4                                              xangle = -1*xangle;
- 521   4                                      }
- 522   3                              else
- 523   3                              {
- 524   4                                      blocks_1[x_b][y_b] = 0;
- 525   4                                      yangle = -1*yangle;
- 526   4                              }
- 527   3                      }
- 528   2                      else
- 529   2                      {
- 530   3                              if(blocks_2[x_b][y_b] == 0)
- 531   3                              {
- 532   4                                      if(xangle < 0)
- 533   4                                      {
- 534   5                                              blocks_2[x_b-1][y_b] = 0;
- 535   5                                      }
- 536   4                                      else
- 537   4                                      {
- 538   5                                              blocks_2[x_b+1][y_b] = 0;
- 539   5                                      }
- 540   4                                              xangle = -1*xangle;
- 541   4                              }
- 542   3                              else
- 543   3                              {
- 544   4                                      blocks_2[x_b][y_b] = 0;
- 545   4                                      yangle = -1*yangle;
- 546   4                              }       
- 547   3                      }
- 548   2                      if(y_b <= 3)
- 549   2                      {
- 550   3                              t_cnt -= (t_cnt*(1/8));
- 551   3                      }
-C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/18/2024 19:18:37 PAGE 10  
+ 490   1              
+ 491   1              col = x-2;
+ 492   1              row = y - 2;
+ 493   1              shift = row%8;
+ 494   1              row = row/8;
+ 495   1              //row >> 3;
+ 496   1              hit = 0;
+ 497   1              for(j = 0, i = row*128+col; j < 5; i++, j++)
+ 498   1              {
+ 499   2                      int mask = (int)ball[j] << shift;
+ 500   2                      hit |= screen[i]&(unsigned char)mask;
+ 501   2                      screen[i] |= mask;
+ 502   2      
+ 503   2                      if(mask & 0xFF00)
+ 504   2                      {
+ 505   3                              hit |= screen[i+128]&(unsigned char)(mask >> 8);
+ 506   3                              screen[i + 128] |= (unsigned char)(mask >> 8);
+ 507   3                      }
+ 508   2              }
+ 509   1              if((x<5 || x > 78) && y < 3)
+ 510   1              {
+ 511   2                      yangle = -1*yangle;
+ 512   2                      xangle = -1*xangle;
+ 513   2                      return -2;
+ 514   2              }
+ 515   1              else if(x<5 || x > 78)
+ 516   1              {
+ 517   2                      xangle = -1*xangle;
+ 518   2                      return -2;
+ 519   2              }
+ 520   1      
+ 521   1              else if (y < 3)
+ 522   1              {
+ 523   2                      yangle = -1*yangle;
+ 524   2                      return -2;
+ 525   2              }
+ 526   1              else if(y > 61)
+ 527   1              {
+ 528   2                      turn_end();
+ 529   2                      return -3;
+ 530   2              }
+ 531   1              if( y == 60 && hit > 0){
+ 532   2      
+ 533   2                      char col = xpos - pot_val -2;
+ 534   2                      int div = 0;
+ 535   2                      if(player == 0){
+ 536   3                              div = pad_w/4;
+ 537   3                              }
+ 538   2                      else{
+ 539   3                              div = pad_w2/4;
+ 540   3                              }
+ 541   2                      if( col < div || col > 3*div)
+ 542   2                      {
+ 543   3                              xangle = 2;
+ 544   3                              yangle = -1;
+ 545   3                      }
+ 546   2                      else
+ 547   2                      {
+ 548   3                              xangle = 1;
+ 549   3                              yangle = -2;
+ 550   3                      }
+ 551   2                      if(col < div *2)
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 10  
 
- 552   2              }
- 553   1              return hit;
- 554   1      }
- 555          
- 556          
- 557          void mov_ball() {
- 558   1              xpos += xangle;
- 559   1              ypos += yangle;
- 560   1              bonk = draw_ball(xpos, ypos);
- 561   1              display();
- 562   1      }
- 563          
- 564          void timer2(void) interrupt 5
- 565          {
- 566   1              
- 567   1              TF2 = 0;
- 568   1              int_cnt ++;
- 569   1                      
- 570   1      }
- 571          
- 572          
- 573          
- 574          
- 575          
- 576          void main()
- 577          {
- 578   1              WDTCN = 0xde; //disable watchdog
- 579   1              WDTCN = 0xad;
- 580   1              XBR2 = 0x40;  //port output
- 581   1              //XBR0 = 4;       //enable uart 0
- 582   1              OSCXCN = 0x67; //crystal enabled
- 583   1              TMOD = 0x20;  //wait 1ms: T1 mode 2
- 584   1              TH1 = 167;        // 1ms/(1/(2Mhz/12)) = 166.666
- 585   1              TR1 = 1;
- 586   1              while( TF1 == 0) {}     //1 ms wait for flag
- 587   1              while( !(OSCXCN & 0x80)) {} //stabilize crystal
- 588   1              OSCICN = 8;   // switch to 22.1184Mhz
- 589   1              //SCON0 = 0x50; //8-bit, var baud, recieve enable
- 590   1              //TH1 = -6;             //9600 baud
- 591   1              
- 592   1              IE = 0xA0;
- 593   1              EIE2 = 0x06; //Timer 4 and ADC
- 594   1              
- 595   1              T4CON = 0x00; //timer 4, auto reload
- 596   1              RCAP4H = -1;    //timer 4
- 597   1              RCAP4L = -144;  //timer 4
- 598   1              //REF0CN = 3;           //set up refrence voltage
- 599   1              DAC0CN = 0x9C;  //DAC0CN
- 600   1      
- 601   1              T2CON = 0x00;
- 602   1              RCAP2H = -2211 >> 8;
- 603   1              RCAP2L = -2211;
- 604   1      
- 605   1              ADC0CN = 0x8c;
- 606   1              REF0CN = 0x07;
- 607   1              ADC0CF = 0x40;
- 608   1              AMX0SL = 0x0;
- 609   1              CKCON = 0x40;
- 610   1              //EXF2 = 1;
- 611   1              TR2 = 1;
- 612   1              T4CON = T4CON^0x04;
- 613   1              
-C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/18/2024 19:18:37 PAGE 11  
+ 552   2                      {
+ 553   3                              xangle = -1*xangle;
+ 554   3                      }
+ 555   2                      //score += 1;
+ 556   2                      return -1;
+ 557   2              }
+ 558   1              else if( hit > 0)
+ 559   1              {
+ 560   2                      
+ 561   2                      int x_b, y_b;
+ 562   2                      score += 1;
+ 563   2                      if(yangle < 0)
+ 564   2                      {
+ 565   3                              y_b = (ypos -10)/4;
+ 566   3                      }
+ 567   2                      else{
+ 568   3                              y_b = (ypos -6)/4;
+ 569   3                      }
+ 570   2                      if(xangle < 0)
+ 571   2                      {
+ 572   3                              x_b = (xpos -5)/7;
+ 573   3                      }
+ 574   2                      else
+ 575   2                      {
+ 576   3                              x_b = (xpos -1)/7;
+ 577   3                      }
+ 578   2                              
+ 579   2                      if(player == 0)
+ 580   2                      {
+ 581   3                              if(blocks_1[x_b][y_b] == 0)
+ 582   3                                      {
+ 583   4                                              if(xangle < 0)
+ 584   4                                                      {
+ 585   5                                                              y_b = (ypos -8)/4;
+ 586   5                                                              blocks_1[x_b-1][y_b] = 0;
+ 587   5                                                      }
+ 588   4                                              else
+ 589   4                                                      {
+ 590   5                                                              y_b = (ypos -8)/4;
+ 591   5                                                              blocks_1[x_b+1][y_b] = 0;
+ 592   5                                                      }
+ 593   4                                              xangle = -1*xangle;
+ 594   4                                      }
+ 595   3                              else
+ 596   3                              {
+ 597   4                                      if(x_b >= 0 || y_b >= 0){
+ 598   5                                              blocks_1[x_b][y_b] = 0;
+ 599   5                                              yangle = -1*yangle;
+ 600   5                                      }
+ 601   4                              }
+ 602   3                      }
+ 603   2                      else
+ 604   2                      {
+ 605   3                              if(blocks_2[x_b][y_b] == 0)
+ 606   3                              {
+ 607   4                                      if(xangle < 0)
+ 608   4                                      {
+ 609   5                                              y_b = (ypos -8)/4;
+ 610   5                                              blocks_2[x_b-1][y_b] = 0;
+ 611   5                                      }
+ 612   4                                      else
+ 613   4                                      {
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 11  
 
- 614   1              init_lcd();
- 615   1              //t_cnt = 50; //change depending on switches
- 616   1              xpos = 40;//middle of screen
- 617   1              ypos = 40;//one pixel below the bricks
- 618   1      
- 619   1              xangle = 1;
- 620   1              yangle = 1;
- 621   1              pad_w = 8;
- 622   1              ball_1 = 3;
- 623   1              ball_2 = 3;
- 624   1              draw_ball(xpos, ypos);
- 625   1              //draw_bricks();
- 626   1              display();
- 627   1              wait_screen();
- 628   1              
- 629   1              
- 630   1              
- 631   1              
- 632   1              while(1)
- 633   1              {
- 634   2                      if(int_cnt==t_cnt) {
- 635   3                      blank_screen();
- 636   3                      draw_paddle(pot_val, pad_w);
- 637   3                      draw_bricks();
- 638   3                      if(bonk > 0){
- 639   4                              RCAP4L = -2097;                         // set up for 659Hz
- 640   4                              duration = 400;                         // one second
- 641   4                              T4CON = T4CON^0x04;
- 642   4                      }
- 643   3                      else if(bonk ==-1)
- 644   3                      {
- 645   4                              RCAP4L = -2642;                         // set up for 523Hz
- 646   4                              duration = 400;
- 647   4                              T4CON = T4CON^0x04;
- 648   4                      }
- 649   3                      else if(bonk == -2)
- 650   3                      {
- 651   4                              RCAP4L = -2354;                         // set up for 587Hz
- 652   4                              duration = 400;
- 653   4                              T4CON = T4CON^0x04;
- 654   4                      }
- 655   3                      mov_ball();
- 656   3                      int_cnt = 0;
- 657   3              }
- 658   2              }
- 659   1      
- 660   1      
- 661   1      }
+ 614   5                                              y_b = (ypos -8)/4;
+ 615   5                                              blocks_2[x_b+1][y_b] = 0;
+ 616   5                                      }
+ 617   4                                              xangle = -1*xangle;
+ 618   4                              }
+ 619   3                              else
+ 620   3                              {       
+ 621   4                                      if(x_b >= 0 || y_b >= 0){
+ 622   5                                              blocks_2[x_b][y_b] = 0;
+ 623   5                                              yangle = -1*yangle;
+ 624   5                                      }
+ 625   4                              }       
+ 626   3                      }
+ 627   2                      if(hit > 0 && ypos <= 21 && su ==0)
+ 628   2                      {
+ 629   3                              t_cnt = t_cnt*0.6;
+ 630   3                              su = 1;
+ 631   3                      }
+ 632   2              }
+ 633   1              return hit;
+ 634   1      }
+ 635          
+ 636          
+ 637          void mov_ball() {
+ 638   1              xpos += xangle;
+ 639   1              ypos += yangle;
+ 640   1              bonk = draw_ball(xpos, ypos);
+ 641   1              display();
+ 642   1      }
+ 643          
+ 644          void timer2(void) interrupt 5
+ 645          {
+ 646   1              
+ 647   1              TF2 = 0;
+ 648   1              int_cnt ++;
+ 649   1                      
+ 650   1      }
+ 651          
+ 652          
+ 653          
+ 654          
+ 655          
+ 656          void main()
+ 657          {
+ 658   1              WDTCN = 0xde; //disable watchdog
+ 659   1              WDTCN = 0xad;
+ 660   1              XBR2 = 0x40;  //port output
+ 661   1              OSCXCN = 0x67; //crystal enabled
+ 662   1              TMOD = 0x20;  //wait 1ms: T1 mode 2
+ 663   1              TH1 = 167;        // 1ms/(1/(2Mhz/12)) = 166.666
+ 664   1              TR1 = 1;          //enable timer 1
+ 665   1              while( TF1 == 0) {}     //1 ms wait for flag
+ 666   1              while( !(OSCXCN & 0x80)) {} //stabilize crystal
+ 667   1              OSCICN = 8;   // switch to 22.1184Mhz
+ 668   1              
+ 669   1              IE = 0xA0;       //Timer 2 interrupt enable
+ 670   1              EIE2 = 0x06; //Timer 4 and ADC
+ 671   1              
+ 672   1              T4CON = 0x00; //timer 4, auto reload
+ 673   1              RCAP4H = -1;    //timer 4
+ 674   1              RCAP4L = -144;  //timer 4
+ 675   1              DAC0CN = 0x9C;  //Speaker setup
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 12  
+
+ 676   1      
+ 677   1              T2CON = 0x00;   //set up timer 2
+ 678   1              RCAP2H = -2211 >> 8;    //
+ 679   1              RCAP2L = -2211;
+ 680   1      
+ 681   1              ADC0CN = 0x8c;
+ 682   1              REF0CN = 0x07;
+ 683   1              ADC0CF = 0x40;
+ 684   1              AMX0SL = 0x0;
+ 685   1              CKCON = 0x40;
+ 686   1              //EXF2 = 1;
+ 687   1              TR2 = 1;
+ 688   1              T4CON = T4CON^0x04;
+ 689   1              
+ 690   1              init_lcd();
+ 691   1              xpos = 40;//middle of screen
+ 692   1              ypos = 40;//one pixel below the bricks
+ 693   1      
+ 694   1              xangle = 1;
+ 695   1              yangle = 1;
+ 696   1              pad_w = 8;
+ 697   1              ball_1 = 3;
+ 698   1              ball_2 = 3;
+ 699   1              draw_ball(xpos, ypos);
+ 700   1              //draw_bricks();
+ 701   1              display();
+ 702   1              wait_screen();
+ 703   1              
+ 704   1              
+ 705   1              
+ 706   1              
+ 707   1              while(1)
+ 708   1              {
+ 709   2                      if(int_cnt==t_cnt) 
+ 710   2                      {
+ 711   3                              blank_screen();
+ 712   3                              draw_paddle(pot_val);
+ 713   3                              draw_bricks();
+ 714   3                              mov_ball();
+ 715   3                              int_cnt = 0;
+ 716   3      
+ 717   3                              //Audio setup for brick breaking
+ 718   3                              if(bonk > 0){
+ 719   4                                      RCAP4H = -2097 >> 8;            // set up for 659Hz
+ 720   4                                      RCAP4L = -2097;                         // set up for 659Hz
+ 721   4                                      duration = 165;                         //quarter second
+ 722   4                                      T4CON = T4CON^0x04;                     //enable timer 4
+ 723   4                              }
+ 724   3                              //Audio for bouncing off paddle
+ 725   3                              else if(bonk ==-1)
+ 726   3                              {
+ 727   4                                      RCAP4H = -2642 >> 8;            // set up for 523Hz
+ 728   4                                      RCAP4L = -2642;                         // set up for 523Hz
+ 729   4                                      duration = 131;                         //quarter second
+ 730   4                                      T4CON = T4CON^0x04;                     //enable timer 4
+ 731   4                              }
+ 732   3                              //Audio for bouncing off wall
+ 733   3                              else if(bonk == -2)
+ 734   3                              {
+ 735   4                                      RCAP4H = -2354>>8;                      // set up for 587Hz
+ 736   4                                      RCAP4L = -2354;                         // set up for 587Hz
+ 737   4                                      duration = 147;                         //quarter second
+C51 COMPILER V9.59.0.0   BREAKOUT                                                          04/19/2024 16:46:57 PAGE 13  
+
+ 738   4                                      T4CON = T4CON^0x04;                     //enable timer 4
+ 739   4                              }
+ 740   3                              
+ 741   3      
+ 742   3                      
+ 743   3                      }
+ 744   2              }
+ 745   1      
+ 746   1      
+ 747   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =   3736    ----
+   CODE SIZE        =   4062    ----
    CONSTANT SIZE    =     76    ----
    XDATA SIZE       =    110      55
    PDATA SIZE       =   ----    ----
-   DATA SIZE        =     43      45
+   DATA SIZE        =     45      47
    IDATA SIZE       =   ----    ----
-   BIT SIZE         =      2    ----
+   BIT SIZE         =      3    ----
 END OF MODULE INFORMATION.
 
 

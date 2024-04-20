@@ -2,12 +2,12 @@
 #include <lcd.h>
 #include<stdio.h>
 #include<stdlib.h>
- 
+
 long score_2, score, score_1, high_score = 0;
 sbit player_sw = P1^7;
 char switches, bonk = 0; 
-bit player, num_player = 0;
-int int_cnt, t_cnt, t_cnt_init, pad_w, pot_val, count = 0;
+bit player, num_player, su = 0;
+int int_cnt, t_cnt, t_cnt_init, pad_w, pad_w2, pot_val, count = 0;
 char ball_1, ball_2 = 3;
 char xpos, ypos, xangle, yangle = 0;
 code unsigned char ball[] = {0x0E, 0x1F, 0x1F, 0x1F, 0x0E};
@@ -40,24 +40,15 @@ xdata unsigned char blocks_2[11][5] = {
     };
 unsigned long sum = 0;
 sbit button = P2^6;
+////////////////////////////////////////////////////////////////////////////////////
+//						Timer 4 Interupt: Used for Game audio
+//	Occurs when timer four flag is raised.
+// 	This plays the sound bite for the desired duration.
+// 	Audio is set up for certain frequencies and then played through this interupt.
+//
+////////////////////////////////////////////////////////////////////////////////////
 
-void disp_char(unsigned char row, unsigned char col, char single_char);
-void disp_score(int x, int y, unsigned long score);
-void display();
-void mov_ball();
-unsigned char draw_ball(int x, int y);
-void wait_screen();
-void game_over();
-void turn_end();
-void draw_paddle(char x, char padd_w);
-
-//void adc_init(){
-//	REF0CN = 0x7;
-//	ADC0CF = 0x40;
-//	ADC0CN = 0x8C;
-//	AMX0SL = 0;
-//}
-unsigned char phase = sizeof(sine)-1;	// current point in sine to output
+unsigned char phase = sizeof(sine)-1;	// current point in sine to outputcode 
 
 unsigned int duration = 0;		// number of cycles left to output
 
@@ -66,88 +57,127 @@ void timer4(void) interrupt 16
 	T4CON = T4CON^0x80;
 	DAC0H = sine[phase];
 	if ( phase < sizeof(sine)-1 )	// if mid-cycle
-	{				// complete it
-		phase++;
+	{				
+		phase++;					// complete it
 	}
 	else if ( duration > 0 )	// if more cycles left to go
-	{				// start a new cycle
-		phase = 0;
+	{				
+		phase = 0;				// start a new cycle
 		duration--;
 	}
-	if (duration == 0){
+	if (duration == 0){			//Turn off timer when the sound is done
 		T4CON = 0x00;
 		}
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+//					Potentiometer Reading: Used for moving the paddle
+//	Occurs when ADC flag is raised and it samples the potentiometer.
+// 	Takes several samples from the potentiometer and averages them.
+//
+////////////////////////////////////////////////////////////////////////////////////
 void pot() interrupt 15{
 	
 	unsigned long samp = 0;
 	unsigned int D;
 	AD0INT = 0;
 
-	D = (ADC0L|(ADC0H << 8));
-
-	samp = (89L - pad_w)*D/4096;
-	sum += samp;
+	D = (ADC0L|(ADC0H << 8)); //Takes in the Data from the potentiometer
+	if(player == 0){
+	samp = (89L - pad_w)*D/4096;	//This normalizes the sample to fit within the play area for player 1
+	}
+	else{
+	samp = (89L - pad_w2)*D/4096;	//This normalizes the sample to fit within the play area for player 2
+	}
+	sum += samp;					//Takes the sum of 8 samples
 	count++;
 	
-	if(count % 7 == 0)
+	if(count % 7 == 0) 				//after 8 samples take the average and update the potentiometers
 	{
-		pot_val = sum >> 3;
+		pot_val = sum >> 3;			//bit shift for division
 		sum = 0;
 	}
 
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+//						Displays Characters to Screen
+//	Input: 
+// 		-Row: 0-7 On the screen
+//		-Col: 0-127 Desired column to start the character
+//		-single_char: One Keyboard character to be printed to the screen.
+// 	Output:
+//		-Displays single character on the LCD display
+////////////////////////////////////////////////////////////////////////////////////
 void disp_char(unsigned char row, unsigned char col, char single_char)
 {
 	int i, j;
 	unsigned char k;
-	i = 128*row+col;
-	j = (single_char - 0x20)*5;
+	i = 128*row+col; 				//takes the row and column and translates it to the exact position on LCD
+	j = (single_char - 0x20)*5;		//translates the single char to be comptible with the font function.
 	for(k = 0; k < 5; k ++) {
-		screen[i+k] = font5x8[j + k];
+		screen[i+k] = font5x8[j + k]; //calls font and prints the char
 		}
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+//						Displays Score to Screen
+//	Input: 
+// 		-X: 0-7 row on the screen
+//		-Y: 0-127 Desired column to start the character
+//		-Score: Four digit score to be printed on the screen
+// 	Output:
+//		-Displays entire score on the LCD display
+////////////////////////////////////////////////////////////////////////////////////
 void disp_score(int x, int y, unsigned long score){
 	int thou = 0;
 	int hund = 0;
 	int tens = 0;
 	int ones = 0;
-	thou = score/1000;
-	score = score%1000;
-	hund = score/100;
-	score = score%100;
-	tens =score/10;
-	ones = score%10;
-	disp_char(x, y, thou + '0');
-	disp_char(x, y+6, hund + '0');
-	disp_char(x, y+12, tens + '0');
-	disp_char(x, y+18, ones + '0');
+	thou = score/1000; 	//takes the thousands place
+	score = score%1000;	//remove the thousands place
+	hund = score/100;	//takes the hundreds place
+	score = score%100;	//remove the hundreds place
+	tens =score/10;		//takes the tens place
+	ones = score%10;	//takes the ones place
+	disp_char(x, y, thou + '0');	//display thousands
+	disp_char(x, y+6, hund + '0');	//display hundreds
+	disp_char(x, y+12, tens + '0');	//display tens
+	disp_char(x, y+18, ones + '0');	//display ones
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+//						Display configuration
+//	This function sets up the display area for the game. 
+//	Prints the boarders for the play area 79x62 with two bit boarder on the outside
+// 	Displays high score, current player score, player 1's balls left,
+//	and player two's balls left.
+////////////////////////////////////////////////////////////////////////////////////
 void display()
 {
 	int i;
 
-	if(score > high_score)
+	if(score > high_score)	//updates high score if current score is greater
 	{
-		high_score = score;
+		high_score = score;	
 	}
 
 	
 	for(i = 0; i < 82; i++)
 	{
-		screen[i] |= 3;
+		screen[i] |= 3; 	//Prints the top boarder
 	}
-	for(i = 0; i < 8; i++)
+	for(i = 0; i < 8; i++)	//print the side walls
 	{
-		screen[i*128] |= 255;
-		screen[i*128 + 1] |= 255;
-		screen[i*128 + 81] |= 255;
+		screen[i*128] |= 255;		//255 is a full column on a page
+		screen[i*128 + 1] |= 255;	//left two boarders
+		screen[i*128 + 81] |= 255;	//right two boarders
 		screen[i*128 + 80] |= 255;
 	}
+
+	//All scores and player's balls are printed on the right side of the screen.
+
+	//Display High Score
 	disp_char(0, 89, 'H');
 	disp_char(0, 95, 'I');
 	disp_char(0, 101, 'G');
@@ -156,6 +186,7 @@ void display()
 
 	disp_score(1, 93, high_score);
 
+	//display current player's score
 	disp_char(2, 87, 'S');
 	disp_char(2, 93, 'C');
 	disp_char(2, 99, 'O');
@@ -163,9 +194,9 @@ void display()
 	disp_char(2, 111, 'E');
 	disp_char(2, 117, ':');
 	
-	//update for two players
 	disp_score(3, 93, score);
-
+	
+	//Display player ones balls left
 	disp_char(4, 99, 'P');
 	disp_char(4, 105, '1');
 	if(ball_1 == 3){
@@ -180,6 +211,8 @@ void display()
 	else if(ball_1 == 1) {
 		disp_char(5, 87, '*');
 		}
+
+	//If more than one player display player two's info
 	if(num_player == 1)
 	{
 		disp_char(6, 99, 'P');
@@ -198,7 +231,7 @@ void display()
 		disp_char(7, 87, '*');
 		}
 
-	//potentially update player scores here
+	//Displays "-P*-" according to who's turn it is
 	if(player == 0)
 	{
 		disp_char(4, 93, '-');
@@ -210,10 +243,12 @@ void display()
 		disp_char(6, 111, '-');
 	}
 
+	//displays the screen
 	refresh_screen();
 }
 
 void wait_screen(){
+	
 	TR2 = 0;
 	xpos = 40;//middle of screen
 	ypos = 40;//one pixel below the bricks
@@ -222,21 +257,35 @@ void wait_screen(){
 	blank_screen();
 	
 	
-	disp_char(2, 30, 'P');
-	disp_char(2, 36, 'R');
-	disp_char(2, 42, 'E');
-	disp_char(2, 48, 'S');
-	disp_char(2, 54, 'S');
-	disp_char(3, 30, 'S');
-	disp_char(3, 36, 'T');
-	disp_char(3, 42, 'A');
-	disp_char(3, 48, 'R');
-	disp_char(3, 54, 'T');
-	//refresh_screen();
+	disp_char(2, 24, 'P');
+	disp_char(2, 30, 'L');
+	disp_char(2, 36, 'A');
+	disp_char(2, 42, 'Y');
+	disp_char(2, 48, 'E');
+	disp_char(2, 54, 'R');
+
+	if(player == 0){
+		disp_char(3, 36, 'O');
+		disp_char(3, 42, 'N');
+		disp_char(3, 48, 'E');
+	}
+	else{
+		disp_char(3, 36, 'T');
+		disp_char(3, 42, 'W');
+		disp_char(3, 48, 'O');
+	}
+	disp_char(4, 30, 'R');
+	disp_char(4, 36, 'E');
+	disp_char(4, 42, 'A');
+	disp_char(4, 48, 'D');
+	disp_char(4, 54, 'Y');
+
 	display();
 	if(ball_1 == 3 && ball_2 == 3){ 
 		while (button == 1){
 		pad_w = P1&3;
+		pad_w2 = P1&96;
+		pad_w2 = pad_w2 >>5;
 		t_cnt_init = P1&24;
 		t_cnt_init = t_cnt_init >>3;
 		num_player = player_sw;
@@ -246,7 +295,13 @@ void wait_screen(){
 			pad_w = 24;
 		}
 		else{
-			pad_w = pad_w*4 +8;
+			pad_w = pad_w2*4 +8;
+		}
+		if(pad_w2 == 3){
+			pad_w2 = 24;
+		}
+		else{
+			pad_w2 = pad_w2*4 +8;
 		}
 		t_cnt_init = t_cnt_init*10 + 30; 
 		t_cnt = t_cnt_init;
@@ -282,6 +337,11 @@ void game_over()
 
 void turn_end()
 {
+	RCAP4H = -1763>>8;			// set up for 784Hz
+	RCAP4L = -1763;				// set up for 784 Hz
+	duration = 196;				// quarter second
+	T4CON = T4CON^0x04;			//enable timer 4
+	su = 0;
 	t_cnt = t_cnt_init;
 	if(num_player == 1){
 		
@@ -407,14 +467,21 @@ void draw_bricks(){
 	} 
 }
 
-void draw_paddle(char x, char padd_w)
+void draw_paddle(char x)
 {
 	int i;
-	pad_w = (int)pad_w;
-	for(i = 0; i < padd_w; i ++)
-	{
-		screen[898+x+i] |= 0xc0;
+	int padd_w;
+	if(player == 0){
+		padd_w = (int)pad_w;
+		
 	}
+	else{
+		padd_w = (int)pad_w2;
+	}
+	for(i = 0; i < padd_w; i ++)
+		{
+			screen[898+x+i] |= 0xc0;
+		}
 }
 
 unsigned char draw_ball(int x, int y)
@@ -459,12 +526,18 @@ unsigned char draw_ball(int x, int y)
 	else if(y > 61)
 	{
 		turn_end();
-		return -2;
+		return -3;
 	}
 	if( y == 60 && hit > 0){
 
 		char col = xpos - pot_val -2;
-		int div = pad_w/4;
+		int div = 0;
+		if(player == 0){
+			div = pad_w/4;
+			}
+		else{
+			div = pad_w2/4;
+			}
 		if( col < div || col > 3*div)
 		{
 			xangle = 2;
@@ -521,8 +594,10 @@ unsigned char draw_ball(int x, int y)
 				}
 			else
 			{
-				blocks_1[x_b][y_b] = 0;
-				yangle = -1*yangle;
+				if(x_b >= 0 || y_b >= 0){
+					blocks_1[x_b][y_b] = 0;
+					yangle = -1*yangle;
+				}
 			}
 		}
 		else
@@ -531,23 +606,28 @@ unsigned char draw_ball(int x, int y)
 			{
 				if(xangle < 0)
 				{
+					y_b = (ypos -8)/4;
 					blocks_2[x_b-1][y_b] = 0;
 				}
 				else
 				{
+					y_b = (ypos -8)/4;
 					blocks_2[x_b+1][y_b] = 0;
 				}
 					xangle = -1*xangle;
 			}
 			else
-			{
-				blocks_2[x_b][y_b] = 0;
-				yangle = -1*yangle;
+			{	
+				if(x_b >= 0 || y_b >= 0){
+					blocks_2[x_b][y_b] = 0;
+					yangle = -1*yangle;
+				}
 			}	
 		}
-		if(y_b <= 3)
+		if(hit > 0 && ypos <= 21 && su ==0)
 		{
-			t_cnt -= (t_cnt*(1/8));
+			t_cnt = t_cnt*0.75;
+			su = 1;
 		}
 	}
 	return hit;
@@ -578,28 +658,24 @@ void main()
 	WDTCN = 0xde; //disable watchdog
 	WDTCN = 0xad;
 	XBR2 = 0x40;  //port output
-	//XBR0 = 4;	  //enable uart 0
 	OSCXCN = 0x67; //crystal enabled
 	TMOD = 0x20;  //wait 1ms: T1 mode 2
 	TH1 = 167;	  // 1ms/(1/(2Mhz/12)) = 166.666
-	TR1 = 1;
+	TR1 = 1;	  //enable timer 1
 	while( TF1 == 0) {}	//1 ms wait for flag
 	while( !(OSCXCN & 0x80)) {} //stabilize crystal
 	OSCICN = 8;   // switch to 22.1184Mhz
-	//SCON0 = 0x50;	//8-bit, var baud, recieve enable
-	//TH1 = -6;		//9600 baud
 	
-	IE = 0xA0;
+	IE = 0xA0;	 //Timer 2 interrupt enable
 	EIE2 = 0x06; //Timer 4 and ADC
 	
 	T4CON = 0x00; //timer 4, auto reload
 	RCAP4H = -1;	//timer 4
 	RCAP4L = -144;	//timer 4
-	//REF0CN = 3;		//set up refrence voltage
-	DAC0CN = 0x9C;	//DAC0CN
+	DAC0CN = 0x9C;	//Speaker setup
 
-	T2CON = 0x00;
-	RCAP2H = -2211 >> 8;
+	T2CON = 0x00;	//set up timer 2
+	RCAP2H = -2211 >> 8;	//
 	RCAP2L = -2211;
 
 	ADC0CN = 0x8c;
@@ -612,7 +688,6 @@ void main()
 	T4CON = T4CON^0x04;
 	
 	init_lcd();
-	//t_cnt = 50; //change depending on switches
 	xpos = 40;//middle of screen
 	ypos = 40;//one pixel below the bricks
 
@@ -631,30 +706,41 @@ void main()
 	
 	while(1)
 	{
-		if(int_cnt==t_cnt) {
-		blank_screen();
-		draw_paddle(pot_val, pad_w);
-		draw_bricks();
-		if(bonk > 0){
-			RCAP4L = -2097;				// set up for 659Hz
-	   		duration = 400;				// one second
-			T4CON = T4CON^0x04;
-		}
-		else if(bonk ==-1)
+		if(int_cnt==t_cnt) 
 		{
-			RCAP4L = -2642;				// set up for 523Hz
-	   		duration = 400;
-			T4CON = T4CON^0x04;
+			blank_screen();
+			draw_paddle(pot_val);
+			draw_bricks();
+			mov_ball();
+			int_cnt = 0;
+
+			//Audio setup for brick breaking
+			if(bonk > 0){
+				RCAP4H = -2097 >> 8;		// set up for 659Hz
+				RCAP4L = -2097;				// set up for 659Hz
+	   			duration = 165;				//quarter second
+				T4CON = T4CON^0x04;			//enable timer 4
+			}
+			//Audio for bouncing off paddle
+			else if(bonk ==-1)
+			{
+				RCAP4H = -2642 >> 8;		// set up for 523Hz
+				RCAP4L = -2642;				// set up for 523Hz
+	   			duration = 131;				//quarter second
+				T4CON = T4CON^0x04;			//enable timer 4
+			}
+			//Audio for bouncing off wall
+			else if(bonk == -2)
+			{
+				RCAP4H = -2354>>8;			// set up for 587Hz
+				RCAP4L = -2354;				// set up for 587Hz
+	   			duration = 147;				//quarter second
+				T4CON = T4CON^0x04;			//enable timer 4
+			}
+			
+
+		
 		}
-		else if(bonk == -2)
-		{
-			RCAP4L = -2354;				// set up for 587Hz
-	   		duration = 400;
-			T4CON = T4CON^0x04;
-		}
-		mov_ball();
-		int_cnt = 0;
-	}
 	}
 
 
